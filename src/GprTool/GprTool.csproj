@@ -16,5 +16,9 @@
     <PackageOutputPath>./nupkg</PackageOutputPath>
     <AssemblyName>gpr</AssemblyName>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.4.1" />
+  </ItemGroup>
   
 </Project>
