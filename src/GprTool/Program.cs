@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using McMaster.Extensions.CommandLineUtils;
@@ -9,9 +10,7 @@ using RestSharp.Authenticators;
 namespace GprTool
 {
     [Command("gpr")]
-    [Subcommand(
-        typeof(ListCommand)
-    )]
+    [Subcommand(typeof(ListCommand), typeof(PushCommand))]
     public class Program : GprCommandBase
     {
         public static Task Main(string[] args) =>
@@ -66,6 +65,48 @@ namespace GprTool
 
             return Task.CompletedTask;
         }
+    }
+
+    [Command(Description = "Publish a package")]
+    public class PushCommand : GprCommandBase
+    {
+        protected override Task OnExecute(CommandLineApplication app)
+        {
+            var user = "GprTool";
+            var token = AccessToken;
+            var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/");
+            client.Authenticator = new HttpBasicAuthenticator(user, token);
+            var request = new RestRequest(Method.PUT);
+            request.AddFile("package", PackageFile);
+            var response = client.Execute(request);
+
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                Console.WriteLine(response.Content);
+                return Task.CompletedTask;
+            }
+
+            var nugetWarning = response.Headers.FirstOrDefault(h =>
+                h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase));
+            if (nugetWarning != null)
+            {
+                Console.WriteLine(nugetWarning.Value);
+                return Task.CompletedTask;
+            }
+
+            Console.WriteLine(response.StatusDescription);
+            foreach (var header in response.Headers)
+            {
+                Console.WriteLine($"{header.Name}: {header.Value}");
+            }
+            return Task.CompletedTask;
+        }
+
+        [Argument(0, Description = "Path to the package file")]
+        public string PackageFile { get; set; }
+
+        [Option("--owner", Description = "The name of the user/org to publish under")]
+        public string Owner { get; }
     }
 
     /// <summary>
