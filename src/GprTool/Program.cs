@@ -43,5 +43,8 @@ namespace GprTool
     public abstract class GprCommandBase
     {
         protected abstract Task OnExecute(CommandLineApplication app);
+
+        [Option("-k|--api-key", Description = "The access token to use")]
+        public string AccessToken { get; }
     }
 }
