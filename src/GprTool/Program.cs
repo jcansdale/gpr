@@ -66,9 +66,6 @@ namespace GprTool
 
             return Task.CompletedTask;
         }
-
-        [Argument(0, Description = "The owner (user or org) of the packages to list")]
-        public string Owner { get; set; } = "you";
     }
 
     /// <summary>
