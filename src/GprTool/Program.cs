@@ -106,7 +106,7 @@ namespace GprTool
         public string PackageFile { get; set; }
 
         [Option("--owner", Description = "The name of the user/org to publish under")]
-        public string Owner { get; }
+        public string Owner { get; } = "GRPTOOL_DEFAULT_OWNER";
     }
 
     /// <summary>
