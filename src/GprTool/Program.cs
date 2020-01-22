@@ -1,6 +1,10 @@
 ﻿using System;
+using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using McMaster.Extensions.CommandLineUtils;
+using RestSharp;
+using RestSharp.Authenticators;
 
 namespace GprTool
 {
@@ -26,7 +30,40 @@ namespace GprTool
     {
         protected override Task OnExecute(CommandLineApplication app)
         {
-            Console.WriteLine($"Hello, {Owner}!");
+            var user = "GprTool";
+            var token = AccessToken;
+            var client = new RestClient("https://api.github.com/graphql");
+            client.Authenticator = new HttpBasicAuthenticator(user, token);
+            var request = new RestRequest(Method.POST);
+            request.AddHeader("accept", "application/vnd.github.packages-preview+json,application/vnd.github.package-deletes-preview+json");
+            var graphql = @"{""query"":""query { viewer { registryPackages(first: 10) { nodes { name packageType nameWithOwner versions(first: 10) { nodes { id version readme deleted files(first: 10) { nodes { name updatedAt } } } } } } } }"",""variables"":{}}";
+            request.AddParameter("undefined", graphql, ParameterType.RequestBody);
+            IRestResponse response = client.Execute(request);
+
+            var doc = JsonDocument.Parse(response.Content);
+
+            var registryPackages = doc.RootElement
+                .GetProperty("data")
+                .GetProperty("viewer")
+                .GetProperty("registryPackages")
+                .GetProperty("nodes")
+                .EnumerateArray()
+                .Select(rp => (name: rp.GetProperty("name"),
+                    packageType: rp.GetProperty("packageType"),
+                    nameWithOwner: rp.GetProperty("nameWithOwner"),
+                    versions: rp.GetProperty("versions").GetProperty("nodes").EnumerateArray()))
+                .GroupBy(p => p.nameWithOwner);
+
+            foreach (var packagesByRepo in registryPackages)
+            {
+                Console.WriteLine(packagesByRepo.Key);
+                foreach (var package in packagesByRepo)
+                {
+                    var versions = package.versions.Select(v => v.GetProperty("version"));
+                    Console.WriteLine($"    {package.name} ({package.packageType}) [{string.Join(", ", versions)}]");
+                }
+            }
+
             return Task.CompletedTask;
         }
 
