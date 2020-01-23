@@ -105,8 +105,8 @@ namespace GprTool
         [Argument(0, Description = "Path to the package file")]
         public string PackageFile { get; set; }
 
-        [Option("--owner", Description = "The name of the user/org to publish under")]
-        public string Owner { get; }
+        [Option("--owner", Description = "The owner if repository URL wasn't specified in nupkg/nuspec")]
+        public string Owner { get; } = "GPR-TOOL-DEFAULT-OWNER";
     }
 
     /// <summary>
