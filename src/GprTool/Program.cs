@@ -10,7 +10,7 @@ using RestSharp.Authenticators;
 namespace GprTool
 {
     [Command("gpr")]
-    [Subcommand(typeof(ListCommand), typeof(PushCommand))]
+    [Subcommand(typeof(ListCommand), typeof(PushCommand), typeof(DetailsCommand))]
     public class Program : GprCommandBase
     {
         public static Task Main(string[] args) =>
@@ -107,6 +107,52 @@ namespace GprTool
 
         [Option("--owner", Description = "The owner if repository URL wasn't specified in nupkg/nuspec")]
         public string Owner { get; } = "GPR-TOOL-DEFAULT-OWNER";
+    }
+
+    [Command(Description = "View package details")]
+    public class DetailsCommand : GprCommandBase
+    {
+        protected override Task OnExecute(CommandLineApplication app)
+        {
+            var user = "GprTool";
+            var token = AccessToken;
+            var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/{Name}/{Version}.json");
+            client.Authenticator = new HttpBasicAuthenticator(user, token);
+            var request = new RestRequest(Method.GET);
+            var response = client.Execute(request);
+
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                var doc = JsonDocument.Parse(response.Content);
+                var json = JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
+                Console.WriteLine(json);
+                return Task.CompletedTask;
+            }
+
+            var nugetWarning = response.Headers.FirstOrDefault(h =>
+                h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase));
+            if (nugetWarning != null)
+            {
+                Console.WriteLine(nugetWarning.Value);
+                return Task.CompletedTask;
+            }
+
+            Console.WriteLine(response.StatusDescription);
+            foreach (var header in response.Headers)
+            {
+                Console.WriteLine($"{header.Name}: {header.Value}");
+            }
+            return Task.CompletedTask;
+        }
+
+        [Argument(0, Description = "Package owner")]
+        public string Owner { get; set; }
+
+        [Argument(1, Description = "Package name")]
+        public string Name { get; set; }
+
+        [Argument(2, Description = "Package version")]
+        public string Version { get; set; }
     }
 
     /// <summary>
