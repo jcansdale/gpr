@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+using System.Xml;
 using System.Linq;
 using System.Net;
 using System.Text.Json;
@@ -13,8 +15,17 @@ namespace GprTool
     [Subcommand(typeof(ListCommand), typeof(PushCommand), typeof(DetailsCommand))]
     public class Program : GprCommandBase
     {
-        public static Task Main(string[] args) =>
-            CommandLineApplication.ExecuteAsync<Program>(args);
+        public async static Task Main(string[] args)
+        {
+            try
+            {
+                await CommandLineApplication.ExecuteAsync<Program>(args);
+            }
+            catch(ApplicationException e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        }
 
         protected override Task OnExecute(CommandLineApplication app)
         {
@@ -30,7 +41,7 @@ namespace GprTool
         protected override Task OnExecute(CommandLineApplication app)
         {
             var user = "GprTool";
-            var token = AccessToken;
+            var token = GetAccessToken();
             var client = new RestClient("https://api.github.com/graphql");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.POST);
@@ -73,7 +84,7 @@ namespace GprTool
         protected override Task OnExecute(CommandLineApplication app)
         {
             var user = "GprTool";
-            var token = AccessToken;
+            var token = GetAccessToken();
             var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.PUT);
@@ -115,7 +126,7 @@ namespace GprTool
         protected override Task OnExecute(CommandLineApplication app)
         {
             var user = "GprTool";
-            var token = AccessToken;
+            var token = GetAccessToken();
             var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/{Name}/{Version}.json");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.GET);
@@ -165,7 +176,59 @@ namespace GprTool
     {
         protected abstract Task OnExecute(CommandLineApplication app);
 
+        public string GetAccessToken()
+        {
+            if (AccessToken is string accessToken)
+            {
+                return accessToken;
+            }
+
+            var warning = (Action<string>)(line => Console.WriteLine(line));
+            if (FindTokenInNuGetConfig(warning) is string configToken)
+            {
+                return configToken;
+            }
+
+            throw new ApplicationException("Couldn't find personal access token");
+        }
+
+        static string FindTokenInNuGetConfig(Action<string> warning = null)
+        {
+            var appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var configFile = Path.Combine(appDataDir, "NuGet", "NuGet.Config");
+            if(!File.Exists(configFile))
+            {
+                warning?.Invoke($"Couldn't find file at '{configFile}'");
+                return null;
+            }
+
+            var xmlDoc = new XmlDocument();
+            xmlDoc.Load(configFile);
+            var tokenValue = xmlDoc.SelectSingleNode("/configuration/packageSourceCredentials/github/add[@key='ClearTextPassword']/@value");
+            if(tokenValue == null)
+            {
+                warning?.Invoke($"Couldn't find a personal access token for GitHub in:");
+                warning?.Invoke(configFile);
+                warning?.Invoke("");
+                warning?.Invoke("Please generate a token with 'repo', 'write:packages', 'read:packages' and 'delete:packages' scopes.");
+                warning?.Invoke("https://github.com/settings/tokens");
+                warning?.Invoke("");
+                warning?.Invoke(@"You can then add the following element to your NuGet.Config file:
+<packageSourceCredentials>
+  <github>
+    <add key=""Username"" value=""USERNAME"" />
+    <add key=""ClearTextPassword"" value=""TOKEN"" />
+  </github>
+</packageSourceCredentials>
+");
+
+                return null;
+            }
+
+            return tokenValue.Value;
+        }
+
         [Option("-k|--api-key", Description = "The access token to use")]
-        public string AccessToken { get; }
+        string AccessToken { get; }
     }
 }
