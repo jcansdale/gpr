@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+using System.Xml;
 using System.Linq;
 using System.Net;
 using System.Text.Json;
@@ -10,11 +12,20 @@ using RestSharp.Authenticators;
 namespace GprTool
 {
     [Command("gpr")]
-    [Subcommand(typeof(ListCommand), typeof(PushCommand), typeof(DetailsCommand))]
+    [Subcommand(typeof(ListCommand), typeof(PushCommand), typeof(DetailsCommand), typeof(SetApiKeyCommand))]
     public class Program : GprCommandBase
     {
-        public static Task Main(string[] args) =>
-            CommandLineApplication.ExecuteAsync<Program>(args);
+        public async static Task Main(string[] args)
+        {
+            try
+            {
+                await CommandLineApplication.ExecuteAsync<Program>(args);
+            }
+            catch(ApplicationException e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        }
 
         protected override Task OnExecute(CommandLineApplication app)
         {
@@ -30,7 +41,7 @@ namespace GprTool
         protected override Task OnExecute(CommandLineApplication app)
         {
             var user = "GprTool";
-            var token = AccessToken;
+            var token = GetAccessToken();
             var client = new RestClient("https://api.github.com/graphql");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.POST);
@@ -73,7 +84,7 @@ namespace GprTool
         protected override Task OnExecute(CommandLineApplication app)
         {
             var user = "GprTool";
-            var token = AccessToken;
+            var token = GetAccessToken();
             var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.PUT);
@@ -115,7 +126,7 @@ namespace GprTool
         protected override Task OnExecute(CommandLineApplication app)
         {
             var user = "GprTool";
-            var token = AccessToken;
+            var token = GetAccessToken();
             var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/{Name}/{Version}.json");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.GET);
@@ -155,6 +166,25 @@ namespace GprTool
         public string Version { get; set; }
     }
 
+    [Command(Name = "setApiKey", Description = "Set GitHub API key/personal access token")]
+    public class SetApiKeyCommand : GprCommandBase
+    {
+        protected override Task OnExecute(CommandLineApplication app)
+        {
+            var configFile = NuGetUtilities.DefaultConfigFile;
+            var source = PackageSource ?? "github";
+            NuGetUtilities.SetApiKey(configFile, ApiKey, source, line => Console.WriteLine(line));
+
+            return Task.CompletedTask;
+        }
+
+        [Argument(0, Description = "Token / API key")]
+        public string ApiKey { get; set; }
+
+        [Argument(1, Description = "The name of the package source (defaults to 'github')")]
+        public string PackageSource { get; set; }
+    }
+
     /// <summary>
     /// This base type provides shared functionality.
     /// Also, declaring <see cref="HelpOptionAttribute"/> on this type means all types that inherit from it
@@ -165,7 +195,23 @@ namespace GprTool
     {
         protected abstract Task OnExecute(CommandLineApplication app);
 
+        public string GetAccessToken()
+        {
+            if (AccessToken is string accessToken)
+            {
+                return accessToken;
+            }
+
+            var warning = (Action<string>)(line => Console.WriteLine(line));
+            if (NuGetUtilities.FindTokenInNuGetConfig(warning) is string configToken)
+            {
+                return configToken;
+            }
+
+            throw new ApplicationException("Couldn't find personal access token");
+        }
+
         [Option("-k|--api-key", Description = "The access token to use")]
-        public string AccessToken { get; }
+        string AccessToken { get; }
     }
 }

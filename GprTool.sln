@@ -7,8 +7,16 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GprTool", "src\GprTool\GprT
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C744FA9A-1AC3-4F05-990F-5D4079826FF1}"
 	ProjectSection(SolutionItems) = preProject
+		nuget.config = nuget.config
+		README.md = README.md
 		version.json = version.json
 	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{40ED2849-353C-431D-8D02-4B24651735EB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{6CF9A121-9126-4057-AD4A-BEC0AD839E98}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GprTool.Tests", "test\GprTool.Tests\GprTool.Tests.csproj", "{98D70836-AC50-41FA-B54B-CFAF43503092}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,9 +28,17 @@ Global
 		{05D76B2C-A445-434E-B25C-D3679E3C6CBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{05D76B2C-A445-434E-B25C-D3679E3C6CBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{05D76B2C-A445-434E-B25C-D3679E3C6CBE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98D70836-AC50-41FA-B54B-CFAF43503092}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98D70836-AC50-41FA-B54B-CFAF43503092}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98D70836-AC50-41FA-B54B-CFAF43503092}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98D70836-AC50-41FA-B54B-CFAF43503092}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{05D76B2C-A445-434E-B25C-D3679E3C6CBE} = {6CF9A121-9126-4057-AD4A-BEC0AD839E98}
+		{98D70836-AC50-41FA-B54B-CFAF43503092} = {40ED2849-353C-431D-8D02-4B24651735EB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7060F7A3-8D04-4AA6-B406-F90EF73771F3}
