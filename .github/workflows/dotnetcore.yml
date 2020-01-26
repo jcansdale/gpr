@@ -16,6 +16,8 @@ jobs:
       run: |
         dotnet tool install -g gpr
         export DOTNET_ROOT="$(dirname $(which dotnet))"
+        echo $DOTNET_ROOT
+        ls $DOTNET_ROOT/tools
         export PATH="$PATH:$DOTNET_ROOT/tools"
         gpr
     - uses: actions/checkout@v1
