@@ -13,5 +13,7 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 3.1.100
+    - name: Nerdbank.GitVersioning
+      uses: AArnott/nbgv@v0.3
     - name: Build with dotnet
       run: dotnet pack --configuration Release
