@@ -8,8 +8,7 @@ namespace GprTool
     {
         public static string FindTokenInNuGetConfig(Action<string> warning = null)
         {
-            var appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var configFile = Path.Combine(appDataDir, "NuGet", "NuGet.Config");
+            var configFile = DefaultConfigFile;
             if (!File.Exists(configFile))
             {
                 warning?.Invoke($"Couldn't find file at '{configFile}'");
@@ -40,6 +39,49 @@ namespace GprTool
             }
 
             return tokenValue.Value;
+        }
+
+        public static void SetApiKey(string configFile, string token, string source, Action<string> warning = null)
+        {
+            var xmlDoc = new XmlDocument();
+            if(File.Exists(configFile))
+            {
+                xmlDoc.Load(configFile);
+            }
+
+            SetApiKey(xmlDoc, token, source);
+
+            warning?.Invoke($"Saving file to: {configFile}");
+            xmlDoc.Save(configFile);
+            warning?.Invoke(File.ReadAllText(configFile));
+        }
+
+        public static void SetApiKey(XmlDocument xmlDoc, string token, string source)
+        {
+            var configurationElement = xmlDoc.SelectSingleNode("/configuration") ?? xmlDoc.CreateElement("configuration");
+            var packageSourceCredentialsElement = configurationElement.SelectSingleNode("packageSourceCredentials") ?? xmlDoc.CreateElement("packageSourceCredentials");
+            var sourceElement = packageSourceCredentialsElement.SelectSingleNode(source) ?? xmlDoc.CreateElement(source);
+            sourceElement.RemoveAll();
+            var addUsernameElement = xmlDoc.CreateElement("add");
+            addUsernameElement.SetAttribute("key", "Username");
+            addUsernameElement.SetAttribute("value", "PersonalAccessToken");
+            var addClearTextPasswordElement = xmlDoc.CreateElement("add");
+            addClearTextPasswordElement.SetAttribute("key", "ClearTextPassword");
+            addClearTextPasswordElement.SetAttribute("value", token);
+            sourceElement.AppendChild(addUsernameElement);
+            sourceElement.AppendChild(addClearTextPasswordElement);
+            packageSourceCredentialsElement.AppendChild(sourceElement);
+            configurationElement.AppendChild(packageSourceCredentialsElement);
+            xmlDoc.AppendChild(configurationElement);
+        }
+
+        public static string DefaultConfigFile
+        {
+            get
+            {
+                var appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                return Path.Combine(appDataDir, "NuGet", "NuGet.Config");
+            }
         }
     }
 }
