@@ -12,7 +12,7 @@ using RestSharp.Authenticators;
 namespace GprTool
 {
     [Command("gpr")]
-    [Subcommand(typeof(ListCommand), typeof(PushCommand), typeof(DetailsCommand))]
+    [Subcommand(typeof(ListCommand), typeof(PushCommand), typeof(DetailsCommand), typeof(SetApiKeyCommand))]
     public class Program : GprCommandBase
     {
         public async static Task Main(string[] args)
@@ -164,6 +164,25 @@ namespace GprTool
 
         [Argument(2, Description = "Package version")]
         public string Version { get; set; }
+    }
+
+    [Command(Name = "setApiKey", Description = "Set GitHub API key/personal access token")]
+    public class SetApiKeyCommand : GprCommandBase
+    {
+        protected override Task OnExecute(CommandLineApplication app)
+        {
+            var configFile = NuGetUtilities.DefaultConfigFile;
+            var source = PackageSource ?? "github";
+            NuGetUtilities.SetApiKey(configFile, ApiKey, source, line => Console.WriteLine(line));
+
+            return Task.CompletedTask;
+        }
+
+        [Argument(0, Description = "Token / API key")]
+        public string ApiKey { get; set; }
+
+        [Argument(1, Description = "The name of the package source (defaults to 'github')")]
+        public string PackageSource { get; set; }
     }
 
     /// <summary>
