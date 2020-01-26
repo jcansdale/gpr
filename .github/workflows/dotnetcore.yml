@@ -18,4 +18,4 @@ jobs:
     - name: Build with dotnet
       run: dotnet pack --configuration Release
     - name: Run the tool
-      run: dotnet exec ./src/GprTool/bin/Release/netcoreapp3.0/gpr.dll
+      run: dotnet exec ./src/GprTool/bin/Release/netcoreapp3.0/gpr.dll setApiKey ${{ secrets.GITHUB_TOKEN }}
