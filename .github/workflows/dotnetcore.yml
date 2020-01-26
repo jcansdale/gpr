@@ -15,7 +15,7 @@ jobs:
     - name: Install gpr tool
       run: |
         dotnet tool install -g gpr
-        export DOTNET_ROOT="$(dirname $(which dotnet))"
+        export DOTNET_ROOT="$(dirname "$(readlink "$(command -v dotnet)")")"
         echo $DOTNET_ROOT
         ls $DOTNET_ROOT/tools
         export PATH="$PATH:$DOTNET_ROOT/tools"
