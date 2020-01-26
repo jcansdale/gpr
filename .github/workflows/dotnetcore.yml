@@ -17,3 +17,5 @@ jobs:
       uses: AArnott/nbgv@v0.3
     - name: Build with dotnet
       run: dotnet pack --configuration Release
+    - name: Run the tool
+      run: dotnet exec .\src\GprTool\bin\Release\netcoreapp3.0\gpr.dll
