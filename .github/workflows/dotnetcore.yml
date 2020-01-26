@@ -15,7 +15,7 @@ jobs:
     - name: Install gpr tool
       run: |
         dotnet tool install gpr --tool-path tools
-        ./tools/gpr
+        tools/gpr setApiKey ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v1
     - name: Nerdbank.GitVersioning
       uses: AArnott/nbgv@v0.3
