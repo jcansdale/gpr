@@ -8,11 +8,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v1
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 3.1.100
+    - name: Install gpr tool
+      run: dotnet tool install -g gpr
+    - uses: actions/checkout@v1
     - name: Nerdbank.GitVersioning
       uses: AArnott/nbgv@v0.3
     - name: Build with dotnet
