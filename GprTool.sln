@@ -7,6 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GprTool", "src\GprTool\GprT
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C744FA9A-1AC3-4F05-990F-5D4079826FF1}"
 	ProjectSection(SolutionItems) = preProject
+		nuget.config = nuget.config
 		version.json = version.json
 	EndProjectSection
 EndProject
@@ -14,7 +15,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{40ED2849-3
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{6CF9A121-9126-4057-AD4A-BEC0AD839E98}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GprTool.Tests", "test\GprTool.Tests\GprTool.Tests.csproj", "{98D70836-AC50-41FA-B54B-CFAF43503092}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GprTool.Tests", "test\GprTool.Tests\GprTool.Tests.csproj", "{98D70836-AC50-41FA-B54B-CFAF43503092}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
