@@ -17,9 +17,9 @@ jobs:
     - uses: actions/checkout@v1
     - name: Set API key for GitHub Package Registry
       run: ~/tools/gpr setApiKey ${{ secrets.GITHUB_TOKEN }}  --config-file nuget.config
-    - name: Nerdbank.GitVersioning
-      uses: AArnott/nbgv@v0.3
+    - uses: aarnott/nbgv@v0.3
+      id: nbgv
     - name: Build with dotnet
       run: dotnet pack --configuration Release
-    - name: Run the tool
-      run: dotnet exec ./src/GprTool/bin/Release/netcoreapp3.0/gpr.dll
+    - name: Self publish tool
+      run: dotnet exec push ./src/GprTool/nupkg/gpr.${{ steps.nbgv.outputs.SemVer2 }}.nupkg -k ${{ secrets.GITHUB_TOKEN }}
