@@ -80,6 +80,16 @@ namespace GprTool
             get
             {
                 var appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                if (appDataDir == null)
+                {
+                    throw new ApplicationException("Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) was null");
+                }
+
+                if (appDataDir == string.Empty)
+                {
+                    throw new ApplicationException("Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) is empty string");
+                }
+
                 return Path.Combine(appDataDir, "NuGet", "NuGet.Config");
             }
         }
