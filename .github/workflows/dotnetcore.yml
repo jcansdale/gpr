@@ -21,5 +21,5 @@ jobs:
       id: nbgv
     - name: Build with dotnet
       run: dotnet pack --configuration Release
-    - name: Self publish tool
-      run: dotnet exec ./src/GprTool/bin/Release/netcoreapp3.0/gpr.dll -- push ./src/GprTool/nupkg/gpr.${{ steps.nbgv.outputs.SemVer2 }}.nupkg -k ${{ secrets.GITHUB_TOKEN }}
+    - name: Publish tool
+      run: ~/tools/gpr push ./src/GprTool/nupkg/gpr.${{ steps.nbgv.outputs.SemVer2 }}.nupkg -k ${{ secrets.GITHUB_TOKEN }}
