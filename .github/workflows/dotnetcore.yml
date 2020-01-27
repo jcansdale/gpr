@@ -12,11 +12,13 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 3.1.100
+        source-url: https://nuget.pkg.github.com/jcansdale/index.json
+        config-file: nuget.config
+      env:
+        NUGET_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
     - name: Install GPR tool
       run: dotnet tool install gpr --tool-path ~/tools
     - uses: actions/checkout@v1
-    - name: Set API key for GitHub Package Registry
-      run: ~/tools/gpr setApiKey ${{ secrets.GITHUB_TOKEN }}  --config-file nuget.config
     - uses: aarnott/nbgv@v0.3
       id: nbgv
     - name: Build with dotnet
