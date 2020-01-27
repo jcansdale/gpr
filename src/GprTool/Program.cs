@@ -233,6 +233,6 @@ namespace GprTool
         }
 
         [Option("-k|--api-key", Description = "The access token to use")]
-        string AccessToken { get; }
+        protected string AccessToken { get; }
     }
 }
