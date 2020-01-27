@@ -171,8 +171,26 @@ namespace GprTool
     {
         protected override Task OnExecute(CommandLineApplication app)
         {
-            var configFile = NuGetUtilities.DefaultConfigFile;
+            var configFile = ConfigFile ?? NuGetUtilities.DefaultConfigFile;
             var source = PackageSource ?? "github";
+
+            if (ApiKey == null)
+            {
+                Console.WriteLine("No API key was specified");
+                Console.WriteLine($"Key would be saved as ClearTextPassword to xpath /configuration/packageSourceCredentials/{source}/.");
+                Console.WriteLine($"Target confile file is '{configFile}':");
+                if (File.Exists(configFile))
+                {
+                    Console.WriteLine(File.ReadAllText(configFile));
+                }
+                else
+                {
+                    Console.WriteLine($"There is currently no file at this location.");
+                }
+
+                return Task.CompletedTask;
+            }
+
             NuGetUtilities.SetApiKey(configFile, ApiKey, source, line => Console.WriteLine(line));
 
             return Task.CompletedTask;
@@ -183,6 +201,9 @@ namespace GprTool
 
         [Argument(1, Description = "The name of the package source (defaults to 'github')")]
         public string PackageSource { get; set; }
+
+        [Option("--config-file", Description = "The NuGet configuration file. If not specified, file the SpecialFolder.ApplicationData + NuGet/NuGet.Config is used")]
+        string ConfigFile { get; set; }
     }
 
     /// <summary>
