@@ -171,7 +171,7 @@ namespace GprTool
     {
         protected override Task OnExecute(CommandLineApplication app)
         {
-            var configFile = ConfigFile ?? NuGetUtilities.GetDefaultConfigFile();
+            var configFile = ConfigFile ?? NuGetUtilities.GetDefaultConfigFile(Warning);
             var source = PackageSource ?? "github";
 
             if (ApiKey == null)
@@ -191,7 +191,7 @@ namespace GprTool
                 return Task.CompletedTask;
             }
 
-            NuGetUtilities.SetApiKey(configFile, ApiKey, source, line => Console.WriteLine(line));
+            NuGetUtilities.SetApiKey(configFile, ApiKey, source, Warning);
 
             return Task.CompletedTask;
         }
@@ -223,14 +223,15 @@ namespace GprTool
                 return accessToken;
             }
 
-            var warning = (Action<string>)(line => Console.WriteLine(line));
-            if (NuGetUtilities.FindTokenInNuGetConfig(warning) is string configToken)
+            if (NuGetUtilities.FindTokenInNuGetConfig(Warning) is string configToken)
             {
                 return configToken;
             }
 
             throw new ApplicationException("Couldn't find personal access token");
         }
+
+        protected void Warning(string line) => Console.WriteLine(line);
 
         [Option("-k|--api-key", Description = "The access token to use")]
         protected string AccessToken { get; }
