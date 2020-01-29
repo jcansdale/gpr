@@ -1,5 +1,5 @@
 name: .NET Core
-on: [push]
+on: [push,repository_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
