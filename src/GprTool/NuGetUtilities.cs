@@ -8,7 +8,7 @@ namespace GprTool
     {
         public static string FindTokenInNuGetConfig(Action<string> warning = null)
         {
-            var configFile = GetDefaultConfigFile();
+            var configFile = GetDefaultConfigFile(warning);
             if (!File.Exists(configFile))
             {
                 warning?.Invoke($"Couldn't find file at '{configFile}'");
@@ -82,17 +82,12 @@ namespace GprTool
             xmlDoc.AppendChild(configurationElement);
         }
 
-        public static string GetDefaultConfigFile()
+        public static string GetDefaultConfigFile(Action<string> warning = null)
         {
             var appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            if (appDataDir == null)
-            {
-                throw new ApplicationException("Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) was null");
-            }
-
             if (appDataDir == string.Empty)
             {
-                throw new ApplicationException("Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) is empty string");
+                warning?.Invoke("Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) is empty string");
             }
 
             return Path.Combine(appDataDir, "NuGet", "NuGet.Config");
