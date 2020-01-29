@@ -87,7 +87,9 @@ namespace GprTool
             var appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             if (appDataDir == string.Empty)
             {
-                warning?.Invoke("Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) is empty string");
+                warning?.Invoke("Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) is empty string.");
+                warning?.Invoke("Defaulting to use 'nuget.config' in current directory.");
+                return "nuget.config";
             }
 
             return Path.Combine(appDataDir, "NuGet", "NuGet.Config");
