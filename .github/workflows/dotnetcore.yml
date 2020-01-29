@@ -16,7 +16,7 @@ jobs:
       run: dotnet tool install gpr --tool-path ~/tools
     - uses: actions/checkout@v1
     - name: Set API key for GitHub Package Registry
-      run: ~/tools/gpr setApiKey ${{ secrets.GITHUB_TOKEN }}  --config-file nuget.config
+      run: ~/tools/gpr setApiKey ${{ secrets.GITHUB_TOKEN }}
     - uses: aarnott/nbgv@v0.3
       id: nbgv
     - name: Build with dotnet
