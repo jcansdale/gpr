@@ -171,7 +171,7 @@ namespace GprTool
     {
         protected override Task OnExecute(CommandLineApplication app)
         {
-            var configFile = ConfigFile ?? NuGetUtilities.DefaultConfigFile;
+            var configFile = ConfigFile ?? NuGetUtilities.GetDefaultConfigFile();
             var source = PackageSource ?? "github";
 
             if (ApiKey == null)

@@ -8,7 +8,7 @@ namespace GprTool
     {
         public static string FindTokenInNuGetConfig(Action<string> warning = null)
         {
-            var configFile = DefaultConfigFile;
+            var configFile = GetDefaultConfigFile();
             if (!File.Exists(configFile))
             {
                 warning?.Invoke($"Couldn't find file at '{configFile}'");
@@ -44,12 +44,19 @@ namespace GprTool
         public static void SetApiKey(string configFile, string token, string source, Action<string> warning = null)
         {
             var xmlDoc = new XmlDocument();
-            if(File.Exists(configFile))
+            if (File.Exists(configFile))
             {
                 xmlDoc.Load(configFile);
             }
 
             SetApiKey(xmlDoc, token, source);
+
+            var dir = Path.GetDirectoryName(configFile);
+            if (Directory.Exists(dir))
+            {
+                warning?.Invoke($"Creating directory: {dir}");
+                Directory.CreateDirectory(dir);
+            }
 
             warning?.Invoke($"Saving file to: {configFile}");
             xmlDoc.Save(configFile);
@@ -75,23 +82,20 @@ namespace GprTool
             xmlDoc.AppendChild(configurationElement);
         }
 
-        public static string DefaultConfigFile
+        public static string GetDefaultConfigFile()
         {
-            get
+            var appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            if (appDataDir == null)
             {
-                var appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                if (appDataDir == null)
-                {
-                    throw new ApplicationException("Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) was null");
-                }
-
-                if (appDataDir == string.Empty)
-                {
-                    throw new ApplicationException("Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) is empty string");
-                }
-
-                return Path.Combine(appDataDir, "NuGet", "NuGet.Config");
+                throw new ApplicationException("Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) was null");
             }
+
+            if (appDataDir == string.Empty)
+            {
+                throw new ApplicationException("Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) is empty string");
+            }
+
+            return Path.Combine(appDataDir, "NuGet", "NuGet.Config");
         }
     }
 }
