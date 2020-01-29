@@ -84,15 +84,23 @@ namespace GprTool
 
         public static string GetDefaultConfigFile(Action<string> warning = null)
         {
-            var appDataDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            if (appDataDir == string.Empty)
+            string baseDir;
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
             {
-                warning?.Invoke("Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) is empty string.");
-                warning?.Invoke("Defaulting to use 'nuget.config' in current directory.");
-                return Path.GetFullPath("nuget.config");
+                baseDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            }
+            else
+            {
+                var userDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                baseDir = Path.Combine(userDir, ".nuget");
             }
 
-            return Path.Combine(appDataDir, "NuGet", "NuGet.Config");
+            return Path.Combine(baseDir, "NuGet", "NuGet.Config");
+        }
+
+        static void foo()
+        {
+            System.Console.WriteLine( Environment.OSVersion.Platform  );
         }
     }
 }
