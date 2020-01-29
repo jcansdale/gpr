@@ -52,7 +52,7 @@ namespace GprTool
             SetApiKey(xmlDoc, token, source);
 
             var dir = Path.GetDirectoryName(configFile);
-            if (Directory.Exists(dir))
+            if (!Directory.Exists(dir))
             {
                 warning?.Invoke($"Creating directory: {dir}");
                 Directory.CreateDirectory(dir);
