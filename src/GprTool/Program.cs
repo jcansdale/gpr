@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Xml;
 using System.Linq;
 using System.Net;
 using System.Text.Json;
@@ -8,6 +7,7 @@ using System.Threading.Tasks;
 using McMaster.Extensions.CommandLineUtils;
 using RestSharp;
 using RestSharp.Authenticators;
+using Octokit.GraphQL;
 
 namespace GprTool
 {
@@ -38,43 +38,35 @@ namespace GprTool
     [Command(Description = "List my packages")]
     public class ListCommand : GprCommandBase
     {
-        protected override Task OnExecute(CommandLineApplication app)
+        protected override async Task OnExecute(CommandLineApplication app)
         {
-            var user = "GprTool";
-            var token = GetAccessToken();
-            var client = new RestClient("https://api.github.com/graphql");
-            client.Authenticator = new HttpBasicAuthenticator(user, token);
-            var request = new RestRequest(Method.POST);
-            request.AddHeader("accept", "application/vnd.github.packages-preview+json,application/vnd.github.package-deletes-preview+json");
-            var graphql = @"{""query"":""query { viewer { registryPackages(first: 10) { nodes { name packageType nameWithOwner versions(first: 10) { nodes { id version readme deleted files(first: 10) { nodes { name updatedAt } } } } } } } }"",""variables"":{}}";
-            request.AddParameter("undefined", graphql, ParameterType.RequestBody);
-            IRestResponse response = client.Execute(request);
+            var connection = CreateConnection();
 
-            var doc = JsonDocument.Parse(response.Content);
-
-            var registryPackages = doc.RootElement
-                .GetProperty("data")
-                .GetProperty("viewer")
-                .GetProperty("registryPackages")
-                .GetProperty("nodes")
-                .EnumerateArray()
-                .Select(rp => (name: rp.GetProperty("name"),
-                    packageType: rp.GetProperty("packageType"),
-                    nameWithOwner: rp.GetProperty("nameWithOwner"),
-                    versions: rp.GetProperty("versions").GetProperty("nodes").EnumerateArray()))
-                .GroupBy(p => p.nameWithOwner);
-
-            foreach (var packagesByRepo in registryPackages)
-            {
-                Console.WriteLine(packagesByRepo.Key);
-                foreach (var package in packagesByRepo)
+            var query = new Query()
+                .Viewer
+                .RegistryPackages(first: 10)
+                .Nodes
+                .Select(p => new
                 {
-                    var versions = package.versions.Select(v => v.GetProperty("version"));
-                    Console.WriteLine($"    {package.name} ({package.packageType}) [{string.Join(", ", versions)}]");
+                    RepositoryUrl = p.Repository != null ? p.Repository.Url : null,
+                    p.Name,
+                    p.PackageType,
+                    p.NameWithOwner,
+                    Versions = p.Versions(100, null, null, null).Nodes.Select(v => v.Version).ToList()
+                })
+                .Compile();
+
+            var result = await connection.Run(query);
+
+            var groups = result.GroupBy(p => p.RepositoryUrl);
+            foreach(var group in groups)
+            {
+                Console.WriteLine(group.Key);
+                foreach(var package in group)
+                {
+                    Console.WriteLine($"    {package.Name} ({package.PackageType}) [{string.Join(", ", package.Versions)}]");
                 }
             }
-
-            return Task.CompletedTask;
         }
     }
 
@@ -215,6 +207,15 @@ namespace GprTool
     public abstract class GprCommandBase
     {
         protected abstract Task OnExecute(CommandLineApplication app);
+
+        protected IConnection CreateConnection()
+        {
+            var productInformation = new ProductHeaderValue("GprTool", ThisAssembly.AssemblyInformationalVersion);
+            var token = GetAccessToken();
+
+            var connection = new Connection(productInformation, new Uri("https://api.github.com/graphql"), token);
+            return connection;
+        }
 
         public string GetAccessToken()
         {
