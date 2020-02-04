@@ -44,15 +44,14 @@ namespace GprTool
 
             var query = new Query()
                 .Viewer
-                .RegistryPackages(first: 10)
+                .Packages(first: 100)
                 .Nodes
                 .Select(p => new
                 {
                     RepositoryUrl = p.Repository != null ? p.Repository.Url : null,
                     p.Name,
-                    p.PackageType,
-                    p.NameWithOwner,
-                    Versions = p.Versions(100, null, null, null).Nodes.Select(v => v.Version).ToList()
+//                    p.PackageType, what happened to this?
+                    Versions = p.Versions(100, null, null, null, null).Nodes.Select(v => v.Version).ToList()
                 })
                 .Compile();
 
@@ -64,7 +63,7 @@ namespace GprTool
                 Console.WriteLine(group.Key);
                 foreach(var package in group)
                 {
-                    Console.WriteLine($"    {package.Name} ({package.PackageType}) [{string.Join(", ", package.Versions)}]");
+                    Console.WriteLine($"    {package.Name} [{string.Join(", ", package.Versions)}]");
                 }
             }
         }
