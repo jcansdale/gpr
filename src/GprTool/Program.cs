@@ -50,6 +50,7 @@ namespace GprTool
                 {
                     RepositoryUrl = p.Repository != null ? p.Repository.Url : null,
                     p.Name,
+                    p.Statistics.DownloadsTotalCount,
 //                    p.PackageType, what happened to this?
                     Versions = p.Versions(100, null, null, null, null).Nodes.Select(v => v.Version).ToList()
                 })
@@ -63,7 +64,7 @@ namespace GprTool
                 Console.WriteLine(group.Key);
                 foreach(var package in group)
                 {
-                    Console.WriteLine($"    {package.Name} [{string.Join(", ", package.Versions)}]");
+                    Console.WriteLine($"    {package.Name} [{string.Join(", ", package.Versions)}] ({package.DownloadsTotalCount} downloads)");
                 }
             }
         }
