@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.4.1" />
+    <PackageReference Include="Octokit.GraphQL" Version="0.1.4-packages-preview" />
     <PackageReference Include="RestSharp" Version="106.10.1" />
   </ItemGroup>
   
