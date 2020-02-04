@@ -38,7 +38,7 @@ namespace GprTool
         }
     }
 
-    [Command(Description = "List packages")]
+    [Command(Description = "List packages for user or org (viewer if not specified)")]
     public class ListCommand : GprCommandBase
     {
         protected override async Task OnExecute(CommandLineApplication app)
