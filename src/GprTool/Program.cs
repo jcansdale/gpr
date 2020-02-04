@@ -4,10 +4,13 @@ using System.Linq;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using McMaster.Extensions.CommandLineUtils;
 using RestSharp;
 using RestSharp.Authenticators;
 using Octokit.GraphQL;
+using Octokit.GraphQL.Model;
+using Octokit.GraphQL.Core;
 
 namespace GprTool
 {
@@ -35,39 +38,84 @@ namespace GprTool
         }
     }
 
-    [Command(Description = "List my packages")]
+    [Command(Description = "List packages for user or org (viewer if not specified)")]
     public class ListCommand : GprCommandBase
     {
         protected override async Task OnExecute(CommandLineApplication app)
         {
             var connection = CreateConnection();
 
-            var query = new Query()
-                .Viewer
-                .Packages(first: 100)
-                .Nodes
-                .Select(p => new
-                {
-                    RepositoryUrl = p.Repository != null ? p.Repository.Url : null,
-                    p.Name,
-                    p.Statistics.DownloadsTotalCount,
-//                    p.PackageType, what happened to this?
-                    Versions = p.Versions(100, null, null, null, null).Nodes.Select(v => v.Version).ToList()
-                })
-                .Compile();
+            IEnumerable<PackageInfo> result;
+            if (PackageOwner is string packageOwner)
+            {
+                var packageConnection = new Query().User(packageOwner).Packages(first: 100);
+                result = await TryGetPackages(connection, packageConnection);
 
-            var result = await connection.Run(query);
+                if (result is null)
+                {
+                    packageConnection = new Query().Organization(packageOwner).Packages(first: 100);
+                    result = await TryGetPackages(connection, packageConnection);
+                }
+
+                if (result is null)
+                {
+                    throw new ApplicationException($"Couldn't find a user or org with the login of '{packageOwner}'");
+                }
+            }
+            else
+            {
+                var packageConnection = new Query().Viewer.Packages(first: 100);
+                result = await TryGetPackages(connection, packageConnection);
+            }
 
             var groups = result.GroupBy(p => p.RepositoryUrl);
-            foreach(var group in groups)
+            foreach (var group in groups)
             {
                 Console.WriteLine(group.Key);
-                foreach(var package in group)
+                foreach (var package in group)
                 {
                     Console.WriteLine($"    {package.Name} [{string.Join(", ", package.Versions)}] ({package.DownloadsTotalCount} downloads)");
                 }
             }
         }
+
+        static async Task<IEnumerable<PackageInfo>> TryGetPackages(IConnection connection, PackageConnection packageConnection)
+        {
+            var query = packageConnection
+                .Nodes
+                .Select(p => new PackageInfo
+                {
+                    RepositoryUrl = p.Repository != null ? p.Repository.Url : null,
+                    Name = p.Name,
+                    DownloadsTotalCount = p.Statistics.DownloadsTotalCount,
+                    Versions = p.Versions(100, null, null, null, null).Nodes.Select(v => v.Version).ToList()
+                })
+                .Compile();
+
+            try
+            {
+                return await connection.Run(query);
+            }
+            catch (GraphQLException e) when (e.Message.StartsWith("Could not resolve to a "))
+            {
+                return null;
+            }
+            catch (GraphQLException e)
+            {
+                throw new ApplicationException(e.Message, e);
+            }
+        }
+
+        class PackageInfo
+        {
+            internal string RepositoryUrl;
+            internal string Name;
+            internal int DownloadsTotalCount;
+            internal IList<string> Versions;
+        }
+
+        [Argument(0, Description = "A user or org that owns packages")]
+        public string PackageOwner { get; set; }
     }
 
     [Command(Description = "Publish a package")]
