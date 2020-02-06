@@ -97,10 +97,5 @@ namespace GprTool
 
             return Path.Combine(baseDir, "NuGet", "NuGet.Config");
         }
-
-        static void foo()
-        {
-            System.Console.WriteLine( Environment.OSVersion.Platform  );
-        }
     }
 }
