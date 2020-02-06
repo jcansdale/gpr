@@ -69,7 +69,7 @@ namespace GprTool
             }
 
             var groups = result.GroupBy(p => p.RepositoryUrl);
-            foreach (var group in groups)
+            foreach (var group in groups.OrderBy(g => g.Key))
             {
                 Console.WriteLine(group.Key);
                 foreach (var package in group)
@@ -85,7 +85,7 @@ namespace GprTool
                 .Nodes
                 .Select(p => new PackageInfo
                 {
-                    RepositoryUrl = p.Repository != null ? p.Repository.Url : null,
+                    RepositoryUrl = p.Repository != null ? p.Repository.Url : "[PRIVATE REPOSITORIES]",
                     Name = p.Name,
                     DownloadsTotalCount = p.Statistics.DownloadsTotalCount,
                     Versions = p.Versions(100, null, null, null, null).Nodes.Select(v => v.Version).ToList()
