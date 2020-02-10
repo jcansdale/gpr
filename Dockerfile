@@ -9,5 +9,5 @@ FROM mcr.microsoft.com/dotnet/core/runtime:3.1 AS production
 LABEL maintainer="jcansdale@gmail.com"
 COPY . /src
 WORKDIR /static
-COPY --from=build /src .
-ENTRYPOINT [ "dotnet", "exec", "./src/GprTool/bin/Release/netcoreapp3.0/gpr.dll" ]
+COPY --from=build /src/src/GprTool/bin/Release/netcoreapp3.0 .
+ENTRYPOINT [ "dotnet", "exec", "gpr.dll" ]
