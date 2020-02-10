@@ -7,4 +7,4 @@ FROM mcr.microsoft.com/dotnet/core/runtime:3.1 AS production
 LABEL maintainer="jcansdale@gmail.com"
 WORKDIR /tool
 COPY --from=build /publish .
-ENTRYPOINT [ "./gpr" ]
+ENTRYPOINT ./gpr
