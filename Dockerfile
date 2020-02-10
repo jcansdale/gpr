@@ -9,4 +9,4 @@ FROM mcr.microsoft.com/dotnet/core/runtime:3.1 AS production
 LABEL maintainer="jcansdale@gmail.com"
 WORKDIR /static
 COPY --from=build /src/publish .
-ENTRYPOINT [ "dotnet", "exec", "gpr.dll" ]
+ENTRYPOINT [ "gpr" ]
