@@ -1,0 +1,15 @@
+name: Docker
+on: [push,repository_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: aarnott/nbgv@v0.3
+      id: nbgv
+    - name: Build docker image
+      run: docker build . -t docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }}
+    - name: Publish docker image
+      run: |
+        docker login -u jcansdale -p ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
+        docker push docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }}

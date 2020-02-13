@@ -5,3 +5,4 @@
 *.nupkg
 _NCrunch_*/
 *.ncrunchsolution
+publish/
