@@ -12,6 +12,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>gpr</ToolCommandName>
     <RepositoryUrl>https://github.com/jcansdale/gpr</RepositoryUrl>
+    <Title>GPR Tool</Title>
     <PackageDescription>A .NET Core tool for working the GitHub Package Registry.</PackageDescription>
     <PackageOutputPath>./nupkg</PackageOutputPath>
     <AssemblyName>gpr</AssemblyName>
