@@ -18,6 +18,7 @@
     <PackageOutputPath>./nupkg</PackageOutputPath>
     <AssemblyName>gpr</AssemblyName>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <Copyright>Mutant Design Limited</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
