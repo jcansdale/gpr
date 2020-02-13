@@ -1,0 +1,8 @@
+name: Docker
+on: [push,repository_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Build docker image
+      run: docker build .
