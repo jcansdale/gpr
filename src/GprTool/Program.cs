@@ -15,7 +15,13 @@ using Octokit.GraphQL.Core;
 namespace GprTool
 {
     [Command("gpr")]
-    [Subcommand(typeof(ListCommand), typeof(PushCommand), typeof(DetailsCommand), typeof(SetApiKeyCommand))]
+    [Subcommand(
+        typeof(ListCommand),
+        typeof(FilesCommand),
+        typeof(PushCommand),
+        typeof(DetailsCommand),
+        typeof(SetApiKeyCommand)
+    )]
     public class Program : GprCommandBase
     {
         public async static Task Main(string[] args)
