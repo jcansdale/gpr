@@ -76,7 +76,7 @@ namespace GprTool
                         var file = version.Files[0];
                         if(file.Name.Contains(version.Version))
                         {
-                            System.Console.WriteLine($"  {file.Name} ({version.DownloadsTotalCount} downloads, {file.Size} bytes)");
+                            System.Console.WriteLine($"  {file.Name} ({file.UpdatedAt:d}, {version.DownloadsTotalCount} downloads, {file.Size} bytes)");
                             continue;
                         }
                     }
@@ -84,7 +84,7 @@ namespace GprTool
                     System.Console.WriteLine($"  {version.Version} ({version.DownloadsTotalCount} downloads)");
                     foreach(var file in version.Files)
                     {
-                        System.Console.WriteLine($"    {file.Name} ({file.Size} bytes)");
+                        System.Console.WriteLine($"    {file.Name} ({file.UpdatedAt:d}, {file.Size} bytes)");
                     }
                 }
             }
