@@ -8,7 +8,7 @@ jobs:
     - uses: aarnott/nbgv@v0.3
       id: nbgv
     - name: Build docker image
-      run: docker build . -t docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }}
+      run: docker build . -t docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} --build-arg READ_PACKAGES_TOKEN=${{ secrets.READ_PACKAGES_TOKEN }}
     - name: Publish docker image
       run: |
         docker login -u jcansdale -p ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
