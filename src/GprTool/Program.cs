@@ -109,7 +109,7 @@ namespace GprTool
                 Console.WriteLine(group.Key);
                 foreach (var package in group)
                 {
-                    Console.WriteLine($"    {package.Name} [{string.Join(", ", package.Versions)}] ({package.DownloadsTotalCount} downloads)");
+                    Console.WriteLine($"    {package.Name} ({package.PackageType}) [{string.Join(", ", package.Versions)}] ({package.DownloadsTotalCount} downloads)");
                 }
             }
         }
@@ -150,6 +150,7 @@ namespace GprTool
                 {
                     RepositoryUrl = p.Repository != null ? p.Repository.Url : "[PRIVATE REPOSITORIES]",
                     Name = p.Name,
+                    PackageType = p.PackageType,
                     DownloadsTotalCount = p.Statistics.DownloadsTotalCount,
                     Versions = p.Versions(100, null, null, null, null).Nodes.Select(v => v.Version).ToList()
                 })
@@ -173,6 +174,7 @@ namespace GprTool
         {
             internal string RepositoryUrl;
             internal string Name;
+            internal PackageType PackageType;
             internal int DownloadsTotalCount;
             internal IList<string> Versions;
         }
@@ -340,8 +342,16 @@ namespace GprTool
                 return configToken;
             }
 
+            if (FindReadPackagesToken() is string readToken)
+            {
+                return readToken;
+            }
+
             throw new ApplicationException("Couldn't find personal access token");
         }
+
+        static string FindReadPackagesToken() =>
+            (Environment.GetEnvironmentVariable("READ_PACKAGES_TOKEN") is string token && token != string.Empty) ? token : null;
 
         protected void Warning(string line) => Console.WriteLine(line);
 
