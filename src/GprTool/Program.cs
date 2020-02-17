@@ -279,8 +279,15 @@ namespace GprTool
                 return configToken;
             }
 
+            if (FindReadPackagesToken() is string readToken)
+            {
+                return readToken;
+            }
+
             throw new ApplicationException("Couldn't find personal access token");
         }
+
+        static string FindReadPackagesToken() => Environment.GetEnvironmentVariable("READ_PACKAGES_TOKEN");
 
         protected void Warning(string line) => Console.WriteLine(line);
 
