@@ -15,7 +15,13 @@ using Octokit.GraphQL.Core;
 namespace GprTool
 {
     [Command("gpr")]
-    [Subcommand(typeof(ListCommand), typeof(PushCommand), typeof(DetailsCommand), typeof(SetApiKeyCommand))]
+    [Subcommand(
+        typeof(ListCommand),
+        typeof(FilesCommand),
+        typeof(PushCommand),
+        typeof(DetailsCommand),
+        typeof(SetApiKeyCommand)
+    )]
     public class Program : GprCommandBase
     {
         public async static Task Main(string[] args)
@@ -38,6 +44,68 @@ namespace GprTool
         }
     }
 
+    [Command(Description = "List files for a package")]
+    public class FilesCommand : GprCommandBase
+    {
+        protected override async Task OnExecute(CommandLineApplication app)
+        {
+            var connection = CreateConnection();
+
+            if(PackagesPath is null)
+            {
+                System.Console.WriteLine("Please include a packages path");
+                return;
+            }
+
+            var packageCollection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath);
+            if(packageCollection == null)
+            {
+                Console.WriteLine("Couldn't find packages");
+                return;
+            }
+
+            var query = packageCollection.Nodes.Select(p => 
+                new
+                {
+                    p.Name, p.Statistics.DownloadsTotalCount,
+                    Versions = p.Versions(100, null, null, null, null).Nodes.Select(v =>
+                    new 
+                    {
+                        v.Version, v.Statistics.DownloadsTotalCount,
+                        Files = v.Files(10, null, null, null, null).Nodes.Select(f => new { f.Name, f.UpdatedAt, f.Size }).ToList()
+                    }).ToList()
+                }).Compile();
+
+            var packages = await connection.Run(query);
+
+            foreach(var package in packages)
+            {
+                Console.WriteLine($"{package.Name} ({package.DownloadsTotalCount} downloads)");
+                foreach (var version in package.Versions)
+                {
+                    if(version.Files.Count == 1)
+                    {
+                        var file = version.Files[0];
+                        if(file.Name.Contains(version.Version))
+                        {
+                            System.Console.WriteLine($"  {file.Name} ({file.UpdatedAt:d}, {version.DownloadsTotalCount} downloads, {file.Size} bytes)");
+                            continue;
+                        }
+                    }
+
+                    System.Console.WriteLine($"  {version.Version} ({version.DownloadsTotalCount} downloads)");
+                    foreach(var file in version.Files)
+                    {
+                        System.Console.WriteLine($"    {file.Name} ({file.UpdatedAt:d}, {file.Size} bytes)");
+                    }
+                }
+            }
+        }
+
+        [Argument(0, Description = "Path to packages the form `owner`, `owner/repo` or `owner/repo/package`")]
+        public string PackagesPath { get; set; }
+    }
+
     [Command(Description = "List packages for user or org (viewer if not specified)")]
     public class ListCommand : GprCommandBase
     {
@@ -45,6 +113,21 @@ namespace GprTool
         {
             var connection = CreateConnection();
 
+            var packages = await GetPackages(connection);
+
+            var groups = packages.GroupBy(p => p.RepositoryUrl);
+            foreach (var group in groups.OrderBy(g => g.Key))
+            {
+                Console.WriteLine(group.Key);
+                foreach (var package in group)
+                {
+                    Console.WriteLine($"    {package.Name} ({package.PackageType}) [{string.Join(", ", package.Versions)}] ({package.DownloadsTotalCount} downloads)");
+                }
+            }
+        }
+
+        async Task<IEnumerable<PackageInfo>> GetPackages(IConnection connection)
+        {
             IEnumerable<PackageInfo> result;
             if (PackageOwner is string packageOwner)
             {
@@ -68,15 +151,7 @@ namespace GprTool
                 result = await TryGetPackages(connection, packageConnection);
             }
 
-            var groups = result.GroupBy(p => p.RepositoryUrl);
-            foreach (var group in groups.OrderBy(g => g.Key))
-            {
-                Console.WriteLine(group.Key);
-                foreach (var package in group)
-                {
-                    Console.WriteLine($"    {package.Name} ({package.PackageType}) [{string.Join(", ", package.Versions)}] ({package.DownloadsTotalCount} downloads)");
-                }
-            }
+            return result;
         }
 
         static async Task<IEnumerable<PackageInfo>> TryGetPackages(IConnection connection, PackageConnection packageConnection)
