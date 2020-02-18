@@ -51,8 +51,13 @@ namespace GprTool
         {
             var connection = CreateConnection();
 
-            // HACK: This only supports users not orgs
-            var packageConnection = new Query().User(PackageOwner ?? "jcansdale-test").Packages(first: 100).Nodes.Select(p => 
+            var packageCollection = await GraphQLUtilities.FindPackageConnection(connection, PackageOwner);
+            if(packageCollection == null)
+            {
+                Console.WriteLine($"Couldn't find User or Organization called '{PackageOwner}'");
+            }
+
+            var query = packageCollection.Nodes.Select(p => 
                 new
                 {
                     p.Name, p.Statistics.DownloadsTotalCount,
@@ -64,7 +69,7 @@ namespace GprTool
                     }).ToList()
                 }).Compile();
 
-            var packages = await connection.Run(packageConnection);
+            var packages = await connection.Run(query);
 
             foreach(var package in packages)
             {
