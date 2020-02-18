@@ -51,10 +51,17 @@ namespace GprTool
         {
             var connection = CreateConnection();
 
-            var packageCollection = await GraphQLUtilities.FindPackageConnection(connection, PackageOwner);
+            if(PackagesPath is null)
+            {
+                System.Console.WriteLine("Please include a packages path");
+                return;
+            }
+
+            var packageCollection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath);
             if(packageCollection == null)
             {
-                Console.WriteLine($"Couldn't find User or Organization called '{PackageOwner}'");
+                Console.WriteLine("Couldn't find packages");
+                return;
             }
 
             var query = packageCollection.Nodes.Select(p => 
@@ -95,8 +102,8 @@ namespace GprTool
             }
         }
 
-        [Argument(0, Description = "A user or org that owns packages")]
-        public string PackageOwner { get; set; }
+        [Argument(0, Description = "Path to packages the form `owner`, `owner/repo` or `owner/repo/package`")]
+        public string PackagesPath { get; set; }
     }
 
     [Command(Description = "List packages for user or org (viewer if not specified)")]

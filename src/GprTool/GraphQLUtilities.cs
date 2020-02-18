@@ -9,17 +9,12 @@ namespace GprTool
     public class GraphQLUtilities
     {
 
-        public static async Task<PackageConnection> FindPackageConnection(IConnection connection, string ownerRepo, int first = 100)
+        public static async Task<PackageConnection> FindPackageConnection(IConnection connection, string packagesPath, int first = 100)
         {
-            var split = ownerRepo?.Split('/');
+            var split = packagesPath.Split('/');
             var owner = split.Length > 0 ? split[0] : null;
             var repo = split.Length > 1 ? split[1] : null;
             var names = split.Length > 2 ? new [] { split[2] } : null;
-
-            if (owner is null)
-            {
-                return new Query().Viewer.Packages(first: first);
-            }
 
             if (repo is string)
             {
