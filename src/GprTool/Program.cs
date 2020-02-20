@@ -19,6 +19,7 @@ namespace GprTool
         typeof(ListCommand),
         typeof(FilesCommand),
         typeof(PushCommand),
+        typeof(DeleteCommand),
         typeof(DetailsCommand),
         typeof(SetApiKeyCommand)
     )]
@@ -104,6 +105,85 @@ namespace GprTool
 
         [Argument(0, Description = "Path to packages the form `owner`, `owner/repo` or `owner/repo/package`")]
         public string PackagesPath { get; set; }
+    }
+
+    [Command(Description = "Delete package versions")]
+    public class DeleteCommand : GprCommandBase
+    {
+        protected override async Task OnExecute(CommandLineApplication app)
+        {
+            var connection = CreateConnection();
+
+            if(PackagesPath is null)
+            {
+                System.Console.WriteLine("Please include a packages path");
+                return;
+            }
+
+            var packageCollection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath);
+            if(packageCollection == null)
+            {
+                Console.WriteLine("Couldn't find packages");
+                return;
+            }
+
+            var query = packageCollection.Nodes.Select(p => 
+                new
+                {
+                    p.Repository.Url, p.Name,
+                    Versions = p.Versions(100, null, null, null, null).Nodes.Select(v =>
+                    new 
+                    {
+                        p.Repository.Url, p.Name,
+                        v.Id, v.Version, v.Statistics.DownloadsTotalCount
+                    }).ToList()
+                }).Compile();
+
+            var packages = await connection.Run(query);
+
+            if (DockerCleanUp)
+            {
+                foreach(var package in packages)
+                {
+                    if(package.Versions.Count == 1 && package.Versions[0] is var version && version.Version == "docker-base-layer")
+                    {
+                        Console.WriteLine($"Cleaning up '{package.Name}'");
+
+                        var versionId = version.Id;
+                        var success = await DeletePackageVersion(connection, versionId);
+                        if (success)
+                        {
+                            Console.WriteLine($"  Deleted '{version.Version}'");
+                        }
+                    }
+                }
+
+                Console.WriteLine("Complete");
+                return;
+            }
+        }
+
+        async Task<bool> DeletePackageVersion(IConnection connection, ID versionId)
+        {
+            try
+            {
+                var input = new DeletePackageVersionInput { PackageVersionId = versionId, ClientMutationId = "GrpTool" };
+                var mutation = new Mutation().DeletePackageVersion(input).Select(p => p.Success).Compile();
+                var payload = await connection.Run(mutation);
+                return payload.Value;
+            }
+            catch(GraphQLException e)
+            {
+                Console.WriteLine(e.Message);
+                return false;
+            }
+        }
+
+        [Argument(0, Description = "Path to packages in the form `owner`, `owner/repo` or `owner/repo/package`")]
+        public string PackagesPath { get; set; }
+
+        [Option("--docker-clean-up", Description = "Clean up orphaned docker layers")]
+        protected bool DockerCleanUp { get; set; }
     }
 
     [Command(Description = "List packages for user or org (viewer if not specified)")]
@@ -368,6 +448,6 @@ namespace GprTool
         protected void Warning(string line) => Console.WriteLine(line);
 
         [Option("-k|--api-key", Description = "The access token to use")]
-        protected string AccessToken { get; }
+        protected string AccessToken { get; set; }
     }
 }
