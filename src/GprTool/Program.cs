@@ -161,6 +161,31 @@ namespace GprTool
                 Console.WriteLine("Complete");
                 return;
             }
+
+            foreach(var package in packages)
+            {
+                Console.WriteLine(package.Name);
+                foreach(var version in package.Versions)
+                {
+                    if (Force)
+                    {
+                        Console.WriteLine($"  Deleting '{version.Version}'");
+
+                        var versionId = version.Id;
+                        await DeletePackageVersion(connection, versionId);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"  {version.Version}");
+                    }
+                }
+            }
+
+            if (!Force)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"To delete these package versions, use the --force option.");
+            }
         }
 
         async Task<bool> DeletePackageVersion(IConnection connection, ID versionId)
@@ -184,6 +209,9 @@ namespace GprTool
 
         [Option("--docker-clean-up", Description = "Clean up orphaned docker layers")]
         protected bool DockerCleanUp { get; set; }
+
+        [Option("--force", Description = "Delete all package versions")]
+        protected bool Force { get; set; }
     }
 
     [Command(Description = "List packages for user or org (viewer if not specified)")]
