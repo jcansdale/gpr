@@ -22,5 +22,7 @@ jobs:
       if: github.ref == 'refs/heads/master'
       run: |
         docker login -u jcansdale -p ${{ secrets.DOCKER_HUB_TOKEN }}
+        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
+        docker push jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
         docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} jcansdale/gpr
         docker push jcansdale/gpr
