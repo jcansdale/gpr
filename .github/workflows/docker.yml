@@ -13,3 +13,8 @@ jobs:
       run: |
         docker login -u jcansdale -p ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
         docker push docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }}
+    - name: Publish latest from master
+      if: github.ref == 'refs/heads/master'
+      run: |
+        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} docker.pkg.github.com/jcansdale/gpr/gpr:latest
+        docker push docker.pkg.github.com/jcansdale/gpr/gpr:latest
