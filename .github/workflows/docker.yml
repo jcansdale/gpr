@@ -16,13 +16,13 @@ jobs:
     - name: Publish latest from master
       if: github.ref == 'refs/heads/master'
       run: |
-        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} docker.pkg.github.com/jcansdale/gpr/gpr
-        docker push docker.pkg.github.com/jcansdale/gpr/gpr
+        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} docker.pkg.github.com/jcansdale/gpr/gpr:latest
+        docker push docker.pkg.github.com/jcansdale/gpr/gpr:latest
     - name: Publish to DockerHub
       if: github.ref == 'refs/heads/master'
       run: |
         docker login -u jcansdale -p ${{ secrets.DOCKER_HUB_TOKEN }}
         docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
         docker push jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
-        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} jcansdale/gpr
-        docker push jcansdale/gpr
+        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} jcansdale/gpr:latest
+        docker push jcansdale/gpr:latest
