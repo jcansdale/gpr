@@ -21,7 +21,8 @@ namespace GprTool
         typeof(PushCommand),
         typeof(DeleteCommand),
         typeof(DetailsCommand),
-        typeof(SetApiKeyCommand)
+        typeof(SetApiKeyCommand),
+        typeof(XmlEncodeCommand)
     )]
     public class Program : GprCommandBase
     {
@@ -429,6 +430,55 @@ namespace GprTool
 
         [Option("--config-file", Description = "The NuGet configuration file. If not specified, file the SpecialFolder.ApplicationData + NuGet/NuGet.Config is used")]
         string ConfigFile { get; set; }
+    }
+
+
+    [Command(Name = "xmlEncode", Description = "XML encode token to prevent it fron being automatically deleted")]
+    public class XmlEncodeCommand : GprCommandBase
+    {
+        protected override Task OnExecute(CommandLineApplication app)
+        {
+            if (Token == null)
+            {
+                Console.WriteLine("No token was specified");
+                return Task.CompletedTask;
+            }
+
+            var xmlEncoded = XmlEncode(Token);
+
+            Console.WriteLine("This XML encoded token can be included in a public repository without being automatically deleted by GitHub:");
+            Console.WriteLine();
+            Console.WriteLine(xmlEncoded);
+
+            Console.WriteLine();
+            Console.WriteLine("For example, the following might be included in `nuget.config`:");
+            Console.WriteLine(@$"<packageSourceCredentials>
+  <github>
+    <add key=""Username"" value=""PublicToken"" />
+    <add key=""ClearTextPassword"" value=""{xmlEncoded}"" />
+  </github>
+</packageSourceCredentials>");
+
+            Console.WriteLine();
+            Console.WriteLine("Or in a Maven `settings.xml` file:");
+            Console.WriteLine(@$"<servers>
+  <server>
+    <id>github</id>
+    <username>PublicToken</username>
+    <password>{xmlEncoded}</password>
+  </server>
+</servers>");
+
+            return Task.CompletedTask;
+        }
+
+        static string XmlEncode(string str)
+        {
+            return string.Concat(str.ToCharArray().Select(ch => $"&#{(int)ch};"));
+        }
+
+        [Argument(0, Description = "Personal Access Token")]
+        public string Token { get; set; }
     }
 
     /// <summary>
