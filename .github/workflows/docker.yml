@@ -9,20 +9,8 @@ jobs:
       id: nbgv
     - name: Build docker image
       run: docker build . -t docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} --build-arg READ_PACKAGES_TOKEN=${{ secrets.READ_PACKAGES_TOKEN }}
-    - name: Publish docker image
-      run: |
-        docker login -u jcansdale -p ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
-        docker push docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }}
-    - name: Publish latest from master
-      if: github.ref == 'refs/heads/master'
-      run: |
-        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} docker.pkg.github.com/jcansdale/gpr/gpr:latest
-        docker push docker.pkg.github.com/jcansdale/gpr/gpr:latest
     - name: Publish to DockerHub
-      if: github.ref == 'refs/heads/master'
       run: |
         docker login -u jcansdale -p ${{ secrets.DOCKER_HUB_TOKEN }}
-        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
-        docker push jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
-        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} jcansdale/gpr:latest
-        docker push jcansdale/gpr:latest
+        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} jcansdale/gpr:windows
+        docker push jcansdale/gpr:windows
