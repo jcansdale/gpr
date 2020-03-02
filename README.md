@@ -17,4 +17,6 @@ Commands:
   push          Publish a package
   setApiKey     Set GitHub API key/personal access token
   xmlEncode     XML encode token to prevent it fron being automatically deleted
+
+Run 'gpr [command] --help' for more information about a command.
 ```
