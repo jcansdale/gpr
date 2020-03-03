@@ -80,11 +80,20 @@ namespace GprTool
 
             var packages = await connection.Run(query);
 
+            var totalStorage = 0;
             foreach(var package in packages)
             {
                 Console.WriteLine($"{package.Name} ({package.DownloadsTotalCount} downloads)");
                 foreach (var version in package.Versions)
                 {
+                    foreach(var file in version.Files)
+                    {
+                        if(file.Size != null)
+                        {
+                            totalStorage += (int)file.Size;
+                        }
+                    }
+
                     if(version.Files.Count == 1)
                     {
                         var file = version.Files[0];
@@ -102,6 +111,8 @@ namespace GprTool
                     }
                 }
             }
+
+            Console.WriteLine($"Storage used {totalStorage/(1024*1024)} MB");
         }
 
         [Argument(0, Description = "Path to packages the form `owner`, `owner/repo` or `owner/repo/package`")]
