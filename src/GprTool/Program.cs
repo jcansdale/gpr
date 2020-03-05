@@ -80,7 +80,7 @@ namespace GprTool
 
             var packages = await connection.Run(query);
 
-            var totalStorage = 0;
+            long totalStorage = 0;
             foreach(var package in packages)
             {
                 Console.WriteLine($"{package.Name} ({package.DownloadsTotalCount} downloads)");
