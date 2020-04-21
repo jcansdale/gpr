@@ -20,4 +20,3 @@ Commands:
 
 Run 'gpr [command] --help' for more information about a command.
 ```
-
