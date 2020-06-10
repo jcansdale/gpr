@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -22,7 +22,7 @@ namespace GprTool
         typeof(DeleteCommand),
         typeof(DetailsCommand),
         typeof(SetApiKeyCommand),
-        typeof(XmlEncodeCommand)
+        typeof(EncodeCommand)
     )]
     public class Program : GprCommandBase
     {
@@ -443,9 +443,8 @@ namespace GprTool
         string ConfigFile { get; set; }
     }
 
-
-    [Command(Name = "xmlEncode", Description = "XML encode token to prevent it fron being automatically deleted")]
-    public class XmlEncodeCommand : GprCommandBase
+    [Command(Name = "encode", Description = "Encode PAT to prevent it from being automatically deleted by GitHub")]
+    public class EncodeCommand : GprCommandBase
     {
         protected override Task OnExecute(CommandLineApplication app)
         {
@@ -455,14 +454,13 @@ namespace GprTool
                 return Task.CompletedTask;
             }
 
+            Console.WriteLine("An encoded token can be included in a public repository without being automatically deleted by GitHub.");
+            Console.WriteLine("These can be used in various package ecosystems like this:");
+
             var xmlEncoded = XmlEncode(Token);
 
-            Console.WriteLine("This XML encoded token can be included in a public repository without being automatically deleted by GitHub:");
             Console.WriteLine();
-            Console.WriteLine(xmlEncoded);
-
-            Console.WriteLine();
-            Console.WriteLine("For example, the following might be included in `nuget.config`:");
+            Console.WriteLine("A NuGet `nuget.config` file:");
             Console.WriteLine(@$"<packageSourceCredentials>
   <github>
     <add key=""Username"" value=""PublicToken"" />
@@ -471,7 +469,7 @@ namespace GprTool
 </packageSourceCredentials>");
 
             Console.WriteLine();
-            Console.WriteLine("Or in a Maven `settings.xml` file:");
+            Console.WriteLine("A Maven `settings.xml` file:");
             Console.WriteLine(@$"<servers>
   <server>
     <id>github</id>
@@ -480,12 +478,25 @@ namespace GprTool
   </server>
 </servers>");
 
+            var unicodeEncode = UnicodeEncode(Token);
+            
+            Console.WriteLine();
+            Console.WriteLine("An npm `.npmrc` file:");
+            Console.WriteLine("@OWNER:registry=https://npm.pkg.github.com");
+            Console.WriteLine($"//npm.pkg.github.com/:_authToken=\"{unicodeEncode}\"");
+            Console.WriteLine();
+
             return Task.CompletedTask;
         }
 
         static string XmlEncode(string str)
         {
             return string.Concat(str.ToCharArray().Select(ch => $"&#{(int)ch};"));
+        }
+
+        static string UnicodeEncode(string str)
+        {
+            return string.Concat(str.ToCharArray().Select(ch => $"\\u{((int)ch).ToString("x4")}"));
         }
 
         [Argument(0, Description = "Personal Access Token")]
