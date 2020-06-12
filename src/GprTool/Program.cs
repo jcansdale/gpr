@@ -6,6 +6,8 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using McMaster.Extensions.CommandLineUtils;
+using NuGet.Packaging;
+using NuGet.Versioning;
 using RestSharp;
 using RestSharp.Authenticators;
 using Octokit.GraphQL;
@@ -320,12 +322,57 @@ namespace GprTool
     {
         protected override Task OnExecute(CommandLineApplication app)
         {
+            var owner = "GPR-TOOL-DEFAULT-OWNER";
+            string rewrittenPackageFile = null;
+
+            if (Repository != null)
+            {
+                NuGetVersion nuGetVersion = null;
+                if (Version != null && !NuGetVersion.TryParse(Version, out nuGetVersion))
+                {
+                    Console.WriteLine("Unable to parse version");
+                    return Task.CompletedTask;
+                }
+
+                var ownerAndRepositoryName = Repository
+                    .Replace("\\", "/")
+                    .Split("/", StringSplitOptions.RemoveEmptyEntries)
+                    .Take(2)
+                    .ToList();
+
+                if (ownerAndRepositoryName.Count != 2)
+                {
+                    Console.WriteLine(
+                        "Invalid repository value. Please use the following format: owner/repository. E.g: jcansdale/gpr");
+                    return Task.CompletedTask;
+                }
+
+                owner = ownerAndRepositoryName[0];
+                var repositoryName = ownerAndRepositoryName[1];
+                var repositoryUrl = $"https://github.com/{owner}/{repositoryName}";
+
+                if (NuGetUtilities.ShouldRewriteNupkg(PackageFile, repositoryUrl, nuGetVersion))
+                {
+                    rewrittenPackageFile = NuGetUtilities.RewriteNupkg(PackageFile, repositoryUrl, nuGetVersion);
+                }
+            }
+
             var user = "GprTool";
             var token = GetAccessToken();
-            var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/");
+            var client = new RestClient($"https://nuget.pkg.github.com/{owner}/");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.PUT);
-            request.AddFile("package", PackageFile);
+            if (rewrittenPackageFile != null)
+            {
+                using var packageStream = rewrittenPackageFile.ReadSharedToStream();
+
+                rewrittenPackageFile = rewrittenPackageFile.Replace("_gpr.nupkg", ".nupkg", StringComparison.OrdinalIgnoreCase);
+                request.AddFile("package", packageStream.ToArray(), Path.GetFileName(rewrittenPackageFile));
+            }
+            else
+            {
+                request.AddFile("package", PackageFile);
+            }
             var response = client.Execute(request);
 
             if (response.StatusCode == HttpStatusCode.OK)
@@ -353,8 +400,11 @@ namespace GprTool
         [Argument(0, Description = "Path to the package file")]
         public string PackageFile { get; set; }
 
-        [Option("--owner", Description = "The owner if repository URL wasn't specified in nupkg/nuspec")]
-        public string Owner { get; } = "GPR-TOOL-DEFAULT-OWNER";
+        [Option("--repository", Description = "Override current nupkg repository url. Format: owner/repository. E.g: jcansdale/gpr")]
+        public string Repository { get; set; }
+
+        [Option("--version", Description = "Override current nupkg version")]
+        public string Version { get; set; } 
     }
 
     [Command(Description = "View package details")]

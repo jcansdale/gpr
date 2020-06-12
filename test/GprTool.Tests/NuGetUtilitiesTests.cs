@@ -1,11 +1,37 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Text;
 using System.Xml;
 using NUnit.Framework;
 using GprTool;
+using NuGet.Packaging;
+using NuGet.Packaging.Core;
+using NuGet.Versioning;
 
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Local")]
 public class NuGetUtilitiesTests
 {
     public class TheSetApiKeyMethod
     {
+        public string TmpDirectoryPath => Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString("N"));
+
+        const string NuspecXml = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<package xmlns=""http://schemas.microsoft.com/packaging/2013/05/nuspecContext.xsd"">
+  <metadata>
+    <id>test</id>
+    <version>1.0.0</version>
+    <authors>abc123</authors>
+    <description>abc123</description>
+    <dependencies>
+      <group targetFramework="".NETStandard2.0"">
+        <dependency id=""test"" version=""0.0.0"" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>";
+
         [Test]
         public void AddClearTextPassword()
         {
@@ -110,6 +136,177 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
             Assert.That(addElements.Count, Is.EqualTo(2));
             var packageSourceCredentialsElements = xmlDoc.SelectNodes($"/configuration/packageSourceCredentials/*");
             Assert.That(packageSourceCredentialsElements.Count, Is.EqualTo(1));
+        }
+
+        [TestCase("1.0.0", "1.0.0", false)]
+        [TestCase("1.0.0", "1.0.0", false)]
+        [TestCase("1.0.0", "1.0.1", true)]
+        public void ShouldRewriteNupkg_Version(string currentVersion, string updatedVersion, bool shouldUpdateVersion)
+        {
+            const string repositoryUrl = "https://github.com/jcansdale/gpr";
+
+            using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
+            {
+                manifest.Metadata.Version = new NuGetVersion(currentVersion);
+                manifest.Metadata.Repository = new RepositoryMetadata
+                {
+                    Url = repositoryUrl,
+                    Type = "git"
+                };
+            }));
+
+            packageBuilderContext.Build();
+
+            Assert.That(
+                NuGetUtilities.ShouldRewriteNupkg(
+                    packageBuilderContext.NupkgFilename,
+                    repositoryUrl, NuGetVersion.Parse(updatedVersion)), Is.EqualTo(shouldUpdateVersion));
+        }
+
+        [TestCase("https://github.com/owner/repo.git", "https://github.com/owner/repo.git", false, Description = "Equals")]
+        [TestCase("https://github.com/owner/repo", "https://github.com/owner/repo.git", true, Description = "Url ends with .git")]
+        [TestCase("https://github.com/owner/repo", "https://github.com/owner/REPO", true, Description = "Case insensitive")]
+        [TestCase(null, "https://github.com/owner/repo.git", true)]
+        [TestCase("https://google.com", "https://github.com/owner/repo.git", true)]
+        public void ShouldRewriteNupkg_RepositoryUrl(string currentRepositoryUrl, string updatedRepositoryUrl, bool shouldUpdateRepositoryUrl)
+        {
+            using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
+            {
+                if (currentRepositoryUrl == null)
+                {
+                    manifest.Metadata.Repository = null;
+                    return;
+                }
+
+                manifest.Metadata.Repository = new RepositoryMetadata
+                {
+                    Url = currentRepositoryUrl,
+                    Type = "git"
+                };
+            }));
+
+            packageBuilderContext.Build();
+
+            Assert.That(
+                NuGetUtilities.ShouldRewriteNupkg(
+                    packageBuilderContext.NupkgFilename,
+                    updatedRepositoryUrl), Is.EqualTo(shouldUpdateRepositoryUrl));
+        }
+
+        [TestCase("https://github.com/owner/repo.git", "https://github.com/owner/repo.git")]
+        [TestCase("https://github.com/owner/repo", "https://github.com/owner/repo")]
+        public void RewriteNuspec(string repositoryUrl, string expectedRepositoryUrl)
+        {
+            using var originalPackageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(
+                manifest =>
+                {
+                    manifest.Metadata.Repository = null;
+                }));
+            originalPackageBuilderContext.Build();
+
+            var rewrittenNupkgAbsolutePath = NuGetUtilities.RewriteNupkg(originalPackageBuilderContext.NupkgFilename, 
+                repositoryUrl, NuGetVersion.Parse("2.0.0"));
+            using var rewrittenNupkgPackageReader = new PackageArchiveReader(File.OpenRead(rewrittenNupkgAbsolutePath));
+
+            var rewrittenNupkgPackageIdentity = rewrittenNupkgPackageReader.GetIdentity();
+            var rewrittenNupkgRepositoryMetadata = rewrittenNupkgPackageReader.NuspecReader.GetRepositoryMetadata();
+
+            Assert.That(rewrittenNupkgPackageIdentity, Is.Not.Null);
+            Assert.That(rewrittenNupkgPackageIdentity.Id, Is.EqualTo("test"));
+            Assert.That(rewrittenNupkgPackageIdentity.Version, Is.EqualTo(NuGetVersion.Parse("2.0.0")));
+            Assert.That(rewrittenNupkgRepositoryMetadata, Is.Not.Null);
+            Assert.That(rewrittenNupkgRepositoryMetadata.Url, Is.EqualTo(expectedRepositoryUrl));
+            Assert.That(rewrittenNupkgRepositoryMetadata.Type, Is.EqualTo("git"));
+        }
+
+        [Test]
+        public void RewriteNuspec_Overwrites_Existing_Repository_Url()
+        {
+            using var originalPackageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(
+                manifest =>
+                {
+                    manifest.Metadata.Repository = new RepositoryMetadata
+                    {
+                        Url = "https://google.com", 
+                        Type = "google"
+                    };
+                }));
+            originalPackageBuilderContext.Build();
+
+            var rewrittenNupkgAbsolutePath = NuGetUtilities.RewriteNupkg(originalPackageBuilderContext.NupkgFilename, 
+                "https://github.com/owner/repo", NuGetVersion.Parse("2.0.0"));
+            using var rewrittenNupkgPackageReader = new PackageArchiveReader(File.OpenRead(rewrittenNupkgAbsolutePath));
+
+            var rewrittenNupkgPackageIdentity = rewrittenNupkgPackageReader.GetIdentity();
+            var rewrittenNupkgRepositoryMetadata = rewrittenNupkgPackageReader.NuspecReader.GetRepositoryMetadata();
+
+            Assert.That(rewrittenNupkgPackageIdentity, Is.Not.Null);
+            Assert.That(rewrittenNupkgPackageIdentity.Id, Is.EqualTo("test"));
+            Assert.That(rewrittenNupkgPackageIdentity.Version, Is.EqualTo(NuGetVersion.Parse("2.0.0")));
+            Assert.That(rewrittenNupkgRepositoryMetadata, Is.Not.Null);
+            Assert.That(rewrittenNupkgRepositoryMetadata.Url, Is.EqualTo("https://github.com/owner/repo"));
+            Assert.That(rewrittenNupkgRepositoryMetadata.Type, Is.EqualTo("git"));
+        }
+
+        [SuppressMessage("ReSharper", "MemberCanBePrivate.Local")]
+        class NuspecContext : IDisposable
+        {
+            public Manifest Manifest { get; }
+            public MemoryStream ManifestStream { get; }
+
+            public NuspecContext(Action<Manifest> manifestBuilder = null)
+            {
+                using var nuspecMemoryStream = new MemoryStream(Encoding.UTF8.GetBytes(NuspecXml));
+                Manifest = Manifest.ReadFrom(nuspecMemoryStream, true);
+                manifestBuilder?.Invoke(Manifest);
+                ManifestStream = new MemoryStream();
+                Manifest.Save(ManifestStream, true);
+                ManifestStream.Seek(0, SeekOrigin.Begin);
+            }
+
+            public void Dispose()
+            {
+                ManifestStream?.Dispose();
+            }
+        }
+
+        class PackageBuilderContext : IDisposable
+        {
+            readonly DisposableDirectory _disposableDirectory;
+
+            public string WorkingDirectory => _disposableDirectory.WorkingDirectory;
+            public string Filename { get; }
+            public string NupkgFilename => Path.Combine(WorkingDirectory, Filename);
+            public NuspecContext NuspecContext { get; }
+
+            public PackageBuilderContext(string workingDirectory, NuspecContext nuspecContext)
+            {
+                if (workingDirectory == null) throw new ArgumentNullException(nameof(workingDirectory));
+                if (nuspecContext == null) throw new ArgumentNullException(nameof(nuspecContext));
+                _disposableDirectory = new DisposableDirectory(workingDirectory);
+
+                Filename = $"{nuspecContext.Manifest.Metadata.Id}.{nuspecContext.Manifest.Metadata.Version}.nupkg";
+                NuspecContext = nuspecContext;
+            }
+
+            public void Build(Action<PackageBuilder> builder = null)
+            {
+                using var packageBuilderOutputStream = new MemoryStream();
+
+                var nupkgPath = Path.Combine(WorkingDirectory, Filename);
+                var packageBuilder = new PackageBuilder(NuspecContext.ManifestStream, WorkingDirectory, s => throw new NotImplementedException());
+
+                builder?.Invoke(packageBuilder);
+
+                packageBuilder.Save(packageBuilderOutputStream);
+
+                File.WriteAllBytes(nupkgPath, packageBuilderOutputStream.ToArray());
+            }
+
+            public void Dispose()
+            {
+                NuspecContext.Dispose();
+            }
         }
     }
 }

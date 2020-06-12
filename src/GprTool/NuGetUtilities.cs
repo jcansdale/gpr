@@ -1,11 +1,111 @@
 ﻿using System;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Xml;
+using System.Xml.Linq;
+using NuGet.Packaging;
+using NuGet.Versioning;
 
 namespace GprTool
 {
     public class NuGetUtilities
     {
+        public static bool ShouldRewriteNupkg(string nupkgPath, string repositoryUrl, NuGetVersion nuGetVersion = null)
+        {
+            if (nupkgPath == null) throw new ArgumentNullException(nameof(nupkgPath));
+            if (repositoryUrl == null) throw new ArgumentNullException(nameof(repositoryUrl));
+
+            using var packageArchiveReader = new PackageArchiveReader(nupkgPath.OpenReadShared(), false);
+
+            var nuspecXDocument = packageArchiveReader.NuspecReader.Xml;
+            var packageXElement = nuspecXDocument.Single("package");
+            var metadataXElement = packageXElement.Single("metadata");
+            var versionXElement = metadataXElement.Single("version");
+
+            if (!NuGetVersion.TryParse(versionXElement.Value, out var nuspecVersion)
+                || nuGetVersion != null && !nuGetVersion.Equals(nuspecVersion))
+            {
+                return true;
+            }
+
+            var repositoryXElement = metadataXElement.SingleOrDefault("repository");
+            if (repositoryXElement == null)
+            {
+                return true;
+            }
+
+            var nuspecRepositoryUrl = repositoryXElement.Attribute("url")?.Value;
+            var nuspecRepositoryType = repositoryXElement.Attribute("type")?.Value;
+
+            return !string.Equals(repositoryUrl, nuspecRepositoryUrl, StringComparison.Ordinal) 
+                   || !string.Equals("git", nuspecRepositoryType, StringComparison.Ordinal);
+        }
+
+        public static string RewriteNupkg(string nupkgPath, string repositoryUrl, NuGetVersion nuGetVersion = null)
+        {
+            if (nupkgPath == null) throw new ArgumentNullException(nameof(nupkgPath));
+            if (repositoryUrl == null) throw new ArgumentNullException(nameof(repositoryUrl));
+
+            var randomDirectoryId = Guid.NewGuid().ToString("N");
+            var nupkgFilename = Path.GetFileName(nupkgPath);
+            var nupkgFilenameWithoutExt = Path.GetFileNameWithoutExtension(nupkgFilename);
+            var nupkgWorkingDirectoryAbsolutePath = Path.GetDirectoryName(nupkgPath);
+            var workingDirectory = Path.Combine(nupkgWorkingDirectoryAbsolutePath, $"{nupkgFilenameWithoutExt}_{randomDirectoryId}");
+
+            using var tmpDirectory = new DisposableDirectory(workingDirectory);
+            using var packageArchiveReader = new PackageArchiveReader(nupkgPath.ReadSharedToStream(), false);
+            using var nuspecMemoryStream = new MemoryStream();
+
+            var nuspecXDocument = packageArchiveReader.NuspecReader.Xml;
+            var packageXElement = nuspecXDocument.Single("package");
+            var metadataXElement = packageXElement.Single("metadata");
+            var packageId = packageXElement.Single("id").Value;
+            var versionXElement = metadataXElement.Single("version");
+            
+            if (nuGetVersion != null)
+            {
+                versionXElement.SetValue(nuGetVersion); 
+            }
+            else
+            {
+                nuGetVersion = NuGetVersion.Parse(versionXElement.Value);
+            }
+
+            var repositoryXElement = metadataXElement.SingleOrDefault("repository");
+            if (repositoryXElement == null)
+            {
+                repositoryXElement = new XElement("repository");
+                repositoryXElement.SetAttributeValue("url", repositoryUrl);
+                repositoryXElement.SetAttributeValue("type", "git");
+                metadataXElement.Add(repositoryXElement);
+            }
+            else
+            {
+                repositoryXElement.SetAttributeValue("url", repositoryUrl);
+                repositoryXElement.SetAttributeValue("type", "git");
+            }
+            
+            nuspecXDocument.Save(nuspecMemoryStream);
+            nuspecMemoryStream.Seek(0, SeekOrigin.Begin);
+
+            ZipFile.ExtractToDirectory(nupkgPath, tmpDirectory.WorkingDirectory, true);
+
+            var nuspecDstFilename = Path.Combine(tmpDirectory.WorkingDirectory, $"{packageId}.nuspec");
+            File.WriteAllBytes(nuspecDstFilename, nuspecMemoryStream.ToArray());
+
+            using var outputStream = new MemoryStream();
+            
+            var packageBuilder = new PackageBuilder(nuspecMemoryStream, tmpDirectory.WorkingDirectory, propertyProvider => throw new NotImplementedException());
+            packageBuilder.Save(outputStream);
+
+            var nupkgDstFilenameAbsolutePath = Path.Combine(nupkgWorkingDirectoryAbsolutePath, $"{packageId}.{nuGetVersion}_gpr.nupkg");
+
+            File.WriteAllBytes(nupkgDstFilenameAbsolutePath, outputStream.ToArray());
+
+            return nupkgDstFilenameAbsolutePath;
+        }
+
         public static string FindTokenInNuGetConfig(Action<string> warning = null)
         {
             var configFile = GetDefaultConfigFile(warning);
@@ -96,6 +196,23 @@ namespace GprTool
             }
 
             return Path.Combine(baseDir, "NuGet", "NuGet.Config");
+        }
+
+    }
+
+    public class DisposableDirectory : IDisposable
+    {
+        public string WorkingDirectory { get; }
+        
+        public DisposableDirectory(string workingDirectory)
+        {
+            WorkingDirectory = workingDirectory;
+            Directory.CreateDirectory(workingDirectory);
+        }
+        
+        public void Dispose()
+        {
+            Directory.Delete(WorkingDirectory, true);
         }
     }
 }
