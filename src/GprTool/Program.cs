@@ -322,7 +322,7 @@ namespace GprTool
         {
             var user = "GprTool";
             var token = GetAccessToken();
-            var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/");
+            var client = WithRestClient($"https://nuget.pkg.github.com/{Owner}/");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.PUT);
             request.AddFile("package", PackageFile);
@@ -364,7 +364,7 @@ namespace GprTool
         {
             var user = "GprTool";
             var token = GetAccessToken();
-            var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/{Name}/{Version}.json");
+            var client = WithRestClient($"https://nuget.pkg.github.com/{Owner}/{Name}/{Version}.json");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.GET);
             var response = client.Execute(request);
@@ -511,11 +511,23 @@ namespace GprTool
     [HelpOption("--help")]
     public abstract class GprCommandBase
     {
+        protected string Product { get; } = "GprTool";
+        protected string AssemblyInformationalVersion => ThisAssembly.AssemblyInformationalVersion;
+        
         protected abstract Task OnExecute(CommandLineApplication app);
+
+        protected RestClient WithRestClient(string baseUrl)
+        {
+            return new RestClient(baseUrl)
+            {
+                UserAgent = $"{Product}/{AssemblyInformationalVersion}"
+            };
+        }
 
         protected IConnection CreateConnection()
         {
-            var productInformation = new ProductHeaderValue("GprTool", ThisAssembly.AssemblyInformationalVersion);
+            var productInformation = new ProductHeaderValue(Product, AssemblyInformationalVersion);
+            
             var token = GetAccessToken();
 
             var connection = new Connection(productInformation, new Uri("https://api.github.com/graphql"), token);
