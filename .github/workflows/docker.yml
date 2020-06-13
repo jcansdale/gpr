@@ -8,9 +8,13 @@ jobs:
     - uses: aarnott/nbgv@v0.3
       id: nbgv
     - name: Build docker image
-      run: docker build . -t docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} --build-arg READ_PACKAGES_TOKEN=${{ secrets.READ_PACKAGES_TOKEN }}
+      run: docker build . -t containers.pkg.github.com/jcansdale/gpr:windows --build-arg READ_PACKAGES_TOKEN=${{ secrets.READ_PACKAGES_TOKEN }}
+    - name: Publish to GHCR
+      run: |
+        docker https://containers.pkg.github.com login -u jcansdale -p ${{ secrets.GHCR_TOKEN }}
+        docker push containers.pkg.github.com/jcansdale/gpr:windows
     - name: Publish to DockerHub
       run: |
+        docker tag containers.pkg.github.com/jcansdale/gpr:windows jcansdale/gpr:windows
         docker login -u jcansdale -p ${{ secrets.DOCKER_HUB_TOKEN }}
-        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} jcansdale/gpr:windows
         docker push jcansdale/gpr:windows
