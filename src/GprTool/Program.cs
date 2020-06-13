@@ -5,6 +5,11 @@ using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Text;
+using DotNet.Globbing;
+using DotNet.Globbing.Evaluation;
+using DotNet.Globbing.Generation;
+using DotNet.Globbing.Token;
 using McMaster.Extensions.CommandLineUtils;
 using RestSharp;
 using RestSharp.Authenticators;
@@ -320,12 +325,38 @@ namespace GprTool
     {
         protected override Task OnExecute(CommandLineApplication app)
         {
+            var glob = Glob.Parse(PackageFile);
+            var isGlobPattern = glob.IsGlobPattern();
+
             var user = "GprTool";
             var token = GetAccessToken();
             var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.PUT);
-            request.AddFile("package", PackageFile);
+
+            if (isGlobPattern)
+            {
+                var fallbackBaseDirectory = Directory.GetCurrentDirectory();
+                var baseDirectory = glob.BuildBasePathFromGlob(fallbackBaseDirectory);
+                foreach (var nupkgFilename in Directory.GetFiles(baseDirectory, "*.nupkg", SearchOption.AllDirectories))
+                {
+                    if (glob.IsMatch(nupkgFilename))
+                    {
+                        request.AddFile("package", nupkgFilename);
+                    }
+                }
+
+                if (!request.Files.Any())
+                {
+                    Console.WriteLine($"Unable to find any nupkgs in directory {baseDirectory} matching glob pattern: {glob}");
+                    return Task.CompletedTask;
+                }
+            }
+            else
+            {
+                request.AddFile("package", PackageFile);
+            }
+
             var response = client.Execute(request);
 
             if (response.StatusCode == HttpStatusCode.OK)

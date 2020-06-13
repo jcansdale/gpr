@@ -22,6 +22,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="DotNet.Glob" Version="3.0.9" />
     <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.4.1" />
     <PackageReference Include="Octokit.GraphQL" Version="0.1.4-packages-preview2" />
     <PackageReference Include="RestSharp" Version="106.10.1" />
