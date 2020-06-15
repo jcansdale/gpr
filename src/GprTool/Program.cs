@@ -333,24 +333,24 @@ namespace GprTool
                 Console.WriteLine($"Invalid version: {Version}");
                 return;
             }
- 
+
             if (isGlobPattern)
             {
-	            var fallbackBaseDirectory = Directory.GetCurrentDirectory();
-	            var baseDirectory = glob.BuildBasePathFromGlob(fallbackBaseDirectory);
-	            packageFiles.AddRange(Directory
-		            .GetFiles(baseDirectory, "*.*", SearchOption.AllDirectories)
-		            .Where(x => 
-			            x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase) 
-			            || x.EndsWith(".snupkg", StringComparison.OrdinalIgnoreCase))
-		            .Where(filename => glob.IsMatch(filename))
+                var fallbackBaseDirectory = Directory.GetCurrentDirectory();
+                var baseDirectory = glob.BuildBasePathFromGlob(fallbackBaseDirectory);
+                packageFiles.AddRange(Directory
+                    .GetFiles(baseDirectory, "*.*", SearchOption.AllDirectories)
+                    .Where(x =>
+                        x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase)
+                        || x.EndsWith(".snupkg", StringComparison.OrdinalIgnoreCase))
+                    .Where(filename => glob.IsMatch(filename))
                     .Select(filename => NuGetUtilities.BuildPackageFile(filename, RepositoryUrl)));
 
-	            if (!packageFiles.Any())
-	            {
-		            Console.WriteLine($"Unable to find any packages in directory {baseDirectory} matching glob pattern: {glob}. Valid filename extensions are .nupkg, .snupkg.");
-		            return;
-	            }
+                if (!packageFiles.Any())
+                {
+                    Console.WriteLine($"Unable to find any packages in directory {baseDirectory} matching glob pattern: {glob}. Valid filename extensions are .nupkg, .snupkg.");
+                    return;
+                }
             }
             else
             {
@@ -405,23 +405,23 @@ namespace GprTool
             var uploadPackageTasks = packageFiles.Select(packageFile =>
             {
                 return Task.Run(async () =>
-	            {
-		            try
-		            {
-			            await UploadPackageAsync();
-		            }
-		            finally
-		            {
-			            concurrencySemaphore.Dispose();
-		            }
-	            });
+                {
+                    try
+                    {
+                        await UploadPackageAsync();
+                    }
+                    finally
+                    {
+                        concurrencySemaphore.Dispose();
+                    }
+                });
 
-	            async Task UploadPackageAsync()
-	            {
-		            await concurrencySemaphore.WaitAsync();
+                async Task UploadPackageAsync()
+                {
+                    await concurrencySemaphore.WaitAsync();
 
-		            var request = new RestRequest(Method.PUT);
-                    
+                    var request = new RestRequest(Method.PUT);
+
                     await using var packageStream = packageFile.Filename.ReadSharedToStream();
                     request.AddFile("package", packageStream.ToArray(), packageFile.FilenameWithoutGprPrefixAndPath);
 
@@ -430,30 +430,30 @@ namespace GprTool
                         Authenticator = new HttpBasicAuthenticator(user, token)
                     };
 
-		            var response = await client.ExecuteAsync(request);
+                    var response = await client.ExecuteAsync(request);
 
                     Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: Uploading package.");
 
-		            if (response.StatusCode == HttpStatusCode.OK)
-		            {
-			            Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {response.Content}");
-			            return;
-		            }
+                    if (response.StatusCode == HttpStatusCode.OK)
+                    {
+                        Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {response.Content}");
+                        return;
+                    }
 
-		            var nugetWarning = response.Headers.FirstOrDefault(h =>
-			            h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase));
-		            if (nugetWarning != null)
-		            {
-			            Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {nugetWarning.Value}");
-			            return;
-		            }
+                    var nugetWarning = response.Headers.FirstOrDefault(h =>
+                        h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase));
+                    if (nugetWarning != null)
+                    {
+                        Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {nugetWarning.Value}");
+                        return;
+                    }
 
-		            Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {response.StatusDescription}");
-		            foreach (var header in response.Headers)
-		            {
-			            Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {header.Name}: {header.Value}");
-		            }
-	            }
+                    Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {response.StatusDescription}");
+                    foreach (var header in response.Headers)
+                    {
+                        Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {header.Name}: {header.Value}");
+                    }
+                }
             });
 
             await Task.WhenAll(uploadPackageTasks);
@@ -466,7 +466,7 @@ namespace GprTool
         public string RepositoryUrl { get; set; }
 
         [Option("-v|--version", Description = "Override current nupkg version")]
-        public string Version { get; set; } 
+        public string Version { get; set; }
 
         [Option("-c|--concurrency", Description = "The number of packages to upload simultaneously. Default value is 4.")]
         public int Concurrency { get; set; } = 4;
