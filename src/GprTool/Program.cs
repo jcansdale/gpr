@@ -5,12 +5,14 @@ using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Reflection;
 using McMaster.Extensions.CommandLineUtils;
 using RestSharp;
 using RestSharp.Authenticators;
 using Octokit.GraphQL;
 using Octokit.GraphQL.Model;
 using Octokit.GraphQL.Core;
+using RestSharp.Extensions;
 
 namespace GprTool
 {
@@ -511,7 +513,7 @@ namespace GprTool
     [HelpOption("--help")]
     public abstract class GprCommandBase
     {
-        protected string Product { get; } = "GprTool";
+        protected string AssemblyProduct => Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyProductAttribute>()?.Product;
         protected string AssemblyInformationalVersion => ThisAssembly.AssemblyInformationalVersion;
         
         protected abstract Task OnExecute(CommandLineApplication app);
@@ -520,13 +522,13 @@ namespace GprTool
         {
             return new RestClient(baseUrl)
             {
-                UserAgent = $"{Product}/{AssemblyInformationalVersion}"
+                UserAgent = $"{AssemblyProduct}/{AssemblyInformationalVersion}"
             };
         }
 
         protected IConnection CreateConnection()
         {
-            var productInformation = new ProductHeaderValue(Product, AssemblyInformationalVersion);
+            var productInformation = new ProductHeaderValue(AssemblyProduct, AssemblyInformationalVersion);
             
             var token = GetAccessToken();
 
