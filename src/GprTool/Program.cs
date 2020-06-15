@@ -358,10 +358,11 @@ namespace GprTool
 
             if (isGlobPattern)
             {
-                var fallbackBaseDirectory = Directory.GetCurrentDirectory();
-                var baseDirectory = glob.BuildBasePathFromGlob(fallbackBaseDirectory);
+                var baseDirectory = Directory.GetCurrentDirectory();
+                var searchDirectory = glob.BuildBasePathFromGlob(baseDirectory);
+
                 packageFiles.AddRange(Directory
-                    .GetFiles(baseDirectory, "*.*", SearchOption.AllDirectories)
+                    .GetFiles(searchDirectory, "*.*", SearchOption.AllDirectories)
                     .Where(x =>
                         x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase)
                         || x.EndsWith(".snupkg", StringComparison.OrdinalIgnoreCase))
@@ -370,7 +371,7 @@ namespace GprTool
 
                 if (!packageFiles.Any())
                 {
-                    Console.WriteLine($"Unable to find any packages in directory {baseDirectory} matching glob pattern: {glob}. Valid filename extensions are .nupkg, .snupkg.");
+                    Console.WriteLine($"Unable to find any packages in directory {searchDirectory} matching glob pattern: {glob}. Valid filename extensions are .nupkg, .snupkg.");
                     return;
                 }
             }

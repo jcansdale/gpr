@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Text;
 using DotNet.Globbing;
@@ -13,7 +14,7 @@ namespace GprTool
             return glob.Tokens.Any(x => !(x is PathSeparatorToken || x is LiteralToken));
         }
 
-        public static string BuildBasePathFromGlob(this Glob glob, string fallbackPath = null)
+        public static string BuildBasePathFromGlob(this Glob glob, string baseDirectory = null)
         {
             if (glob == null) throw new ArgumentNullException(nameof(glob));
 
@@ -56,12 +57,12 @@ namespace GprTool
             done:
 
             var pathStr = path.ToString();
-            if (fallbackPath != null && string.IsNullOrWhiteSpace(pathStr))
+            if (baseDirectory != null && !Path.IsPathRooted(pathStr))
             {
-                return fallbackPath;
+                return Path.GetFullPath(pathStr, baseDirectory);
             }
 
-            return pathStr;
+            return Path.GetFullPath(pathStr);
         }
     }
 }

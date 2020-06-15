@@ -7,6 +7,11 @@ class GlobExtensionTests
 {
     [TestCase("c:\\test.nupkg", false)]
     [TestCase("c:\\test", false)]
+    [TestCase("packages", false)]
+    [TestCase("./packages", false)]
+    [TestCase(".\\packages", false)]
+    [TestCase("packages/**/*.nupkg", true)]
+    [TestCase("packages\\**\\*.nupkg", true)]
     [TestCase("c:\\test?", true)]
     [TestCase("c:\\test?\\**", true)]
     [TestCase("c:\\test?\\[abc]\\**", true)]
@@ -19,6 +24,9 @@ class GlobExtensionTests
         Assert.That(glob.IsGlobPattern(), Is.EqualTo(isGlobPattern));
     }
 
+    [TestCase("./packages/**/*.nupkg", "c:\\test\\packages")]
+    [TestCase(".\\packages/**/*.nupkg", "c:\\test\\packages")]
+    [TestCase("packages", "c:\\test\\packages")]
     [TestCase("c:\\test.nupkg", "c:\\test.nupkg")]
     [TestCase("c:\\test", "c:\\test")]
     [TestCase("c:\\test?", "c:\\test")]
@@ -32,13 +40,15 @@ class GlobExtensionTests
     public void BuildBasePathFromGlob(string path, string expectedBaseDirectory)
     {
         var glob = Glob.Parse(path);
-        Assert.That(glob.BuildBasePathFromGlob(), Is.EqualTo(expectedBaseDirectory));
+        Assert.That(glob.BuildBasePathFromGlob("c:\\test"), Is.EqualTo(expectedBaseDirectory));
     }
 
-    [Test]
-    public void BuildBasePathFromGlob_FallbackPath()
+    [TestCase("packages/**/*.nupkg", "c:\\test", "c:\\test\\packages")]
+    [TestCase("packages\\**\\*.nupkg", "c:\\test", "c:\\test\\packages")]
+    [TestCase("packages", "c:\\test", "c:\\test\\packages")]
+    public void BuildBasePathFromGlob_Uses_BaseDirectory_When_Path_Is_Not_Rooted(string relativePath, string baseDirectory, string expectedPath)
     {
-        var glob = Glob.Parse("*.*");
-        Assert.That(glob.BuildBasePathFromGlob("c:\\test"), Is.EqualTo("c:\\test"));
+        var glob = Glob.Parse(relativePath);
+        Assert.That(glob.BuildBasePathFromGlob(baseDirectory), Is.EqualTo(expectedPath));
     }
 }
