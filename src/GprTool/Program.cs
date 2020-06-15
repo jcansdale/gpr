@@ -15,6 +15,7 @@ using RestSharp.Authenticators;
 using Octokit.GraphQL;
 using Octokit.GraphQL.Model;
 using Octokit.GraphQL.Core;
+using Polly;
 using RestSharp.Extensions;
 
 namespace GprTool
@@ -323,6 +324,25 @@ namespace GprTool
     [Command(Description = "Publish a package")]
     public class PushCommand : GprCommandBase
     {
+        static IAsyncPolicy<IRestResponse> BuildRetryAsyncPolicy(int retryNumber, int retrySleepSeconds, int timeoutSeconds)
+        {
+            if (retryNumber <= 0)
+            {
+                return Policy.NoOpAsync<IRestResponse>();
+            }
+
+            var retryPolicy = Policy
+                // http://restsharp.org/usage/exceptions.html
+                .HandleResult<IRestResponse>(x => x.StatusCode != HttpStatusCode.Unauthorized
+                                                  && x.StatusCode != HttpStatusCode.Conflict 
+                                                  && x.StatusCode != HttpStatusCode.OK)
+                .WaitAndRetryAsync(retryNumber, retryAttempt => TimeSpan.FromSeconds(retrySleepSeconds));
+
+            var timeoutPolicy = Policy.TimeoutAsync<IRestResponse>(timeoutSeconds);
+
+            return Policy.WrapAsync(retryPolicy, timeoutPolicy);
+        }
+
         protected override async Task OnExecute(CommandLineApplication app)
         {
             var packageFiles = new List<PackageFile>();
@@ -404,6 +424,11 @@ namespace GprTool
 
             Console.WriteLine($"Found {packageFiles.Count} package{(packageFiles.Count > 1 ? "s" : string.Empty)}.");
 
+            // Retry X times ->
+            // Sleep for X seconds ->
+            // Timeout if the request takes longer than X seconds.
+            var retryPolicy = BuildRetryAsyncPolicy(Math.Max(0, Retries), 10, 300);
+
             var uploadPackageTasks = packageFiles.Select(packageFile =>
             {
                 return Task.Run(async () =>
@@ -432,9 +457,9 @@ namespace GprTool
                         x.Authenticator = new HttpBasicAuthenticator(user, token);
                     });
 
-                    var response = await client.ExecuteAsync(request);
-
                     Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: Uploading package.");
+                    
+                    var response = await retryPolicy.ExecuteAsync(() => client.ExecuteAsync(request));
 
                     if (response.StatusCode == HttpStatusCode.OK)
                     {
@@ -472,6 +497,9 @@ namespace GprTool
 
         [Option("-c|--concurrency", Description = "The number of packages to upload simultaneously. Default value is 4.")]
         public int Concurrency { get; set; } = 4;
+
+        [Option("--retries", Description = "The number of retries in case of intermittent connection issue. Default value is 3. Set to 0 if you want to disable automatic retry.")]
+        public int Retries { get; set; } = 3;
     }
 
     [Command(Description = "View package details")]
