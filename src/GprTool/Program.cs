@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using DotNet.Globbing;
 using DotNet.Globbing.Evaluation;
 using DotNet.Globbing.Generation;
@@ -323,69 +324,111 @@ namespace GprTool
     [Command(Description = "Publish a package")]
     public class PushCommand : GprCommandBase
     {
-        protected override Task OnExecute(CommandLineApplication app)
+        protected override async Task OnExecute(CommandLineApplication app)
         {
             var glob = Glob.Parse(PackageFile);
             var isGlobPattern = glob.IsGlobPattern();
 
-            var user = "GprTool";
-            var token = GetAccessToken();
-            var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/");
-            client.Authenticator = new HttpBasicAuthenticator(user, token);
-            var request = new RestRequest(Method.PUT);
-
+            var packages = new List<string>();
             if (isGlobPattern)
             {
                 var fallbackBaseDirectory = Directory.GetCurrentDirectory();
                 var baseDirectory = glob.BuildBasePathFromGlob(fallbackBaseDirectory);
-                foreach (var nupkgFilename in Directory.GetFiles(baseDirectory, "*.nupkg", SearchOption.AllDirectories))
-                {
-                    if (glob.IsMatch(nupkgFilename))
-                    {
-                        request.AddFile("package", nupkgFilename);
-                    }
-                }
+                packages.AddRange(Directory
+                    .GetFiles(baseDirectory, "*.*", SearchOption.AllDirectories)
+                    .Where(x => 
+                        x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase) 
+                        || x.EndsWith(".snupkg", StringComparison.OrdinalIgnoreCase))
+                    .Where(filename => glob.IsMatch(filename)));
 
-                if (!request.Files.Any())
+                if (!packages.Any())
                 {
-                    Console.WriteLine($"Unable to find any nupkgs in directory {baseDirectory} matching glob pattern: {glob}");
-                    return Task.CompletedTask;
+                    Console.WriteLine($"Unable to find any packages in directory {baseDirectory} matching glob pattern: {glob}. Valid filename extensions are .nupkg, .snupkg.");
+                    return;
                 }
             }
             else
             {
-                request.AddFile("package", PackageFile);
+                if (!File.Exists(PackageFile))
+                {
+                    Console.WriteLine($"Package file was not found: {PackageFile}");
+                    return;
+                }
+
+                packages.Add(PackageFile);
             }
 
-            var response = client.Execute(request);
-
-            if (response.StatusCode == HttpStatusCode.OK)
+            const string user = "GprTool";
+            var token = GetAccessToken();
+            var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/")
             {
-                Console.WriteLine(response.Content);
-                return Task.CompletedTask;
-            }
+                Authenticator = new HttpBasicAuthenticator(user, token)
+            };
 
-            var nugetWarning = response.Headers.FirstOrDefault(h =>
-                h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase));
-            if (nugetWarning != null)
-            {
-                Console.WriteLine(nugetWarning.Value);
-                return Task.CompletedTask;
-            }
+            using var concurrencySemaphore = new SemaphoreSlim(Math.Max(1, Concurrency));
 
-            Console.WriteLine(response.StatusDescription);
-            foreach (var header in response.Headers)
+            Console.WriteLine($"Uploading {packages.Count} packages.");
+
+            var uploadPackageTasks = packages.Select(packageFilePath =>
             {
-                Console.WriteLine($"{header.Name}: {header.Value}");
-            }
-            return Task.CompletedTask;
+                var packageFilename = Path.GetFileName(packageFilePath);
+
+                return Task.Run(async () =>
+                {
+                    try
+                    {
+                        await UploadPackageAsync();
+                    }
+                    finally
+                    {
+                        concurrencySemaphore.Dispose();
+                    }
+                });
+
+                async Task UploadPackageAsync()
+                {
+                    await concurrencySemaphore.WaitAsync();
+
+                    var request = new RestRequest(Method.PUT);
+                    request.AddFile("package", packageFilePath);
+
+                    var response = await client.ExecuteAsync(request);
+
+                    Console.WriteLine($"[{packageFilename}]: Uploading package.");
+
+                    if (response.StatusCode == HttpStatusCode.OK)
+                    {
+                        Console.WriteLine($"[{packageFilename}]: {response.Content}");
+                        return;
+                    }
+
+                    var nugetWarning = response.Headers.FirstOrDefault(h =>
+                        h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase));
+                    if (nugetWarning != null)
+                    {
+                        Console.WriteLine($"[{packageFilename}]: {nugetWarning.Value}");
+                        return;
+                    }
+
+                    Console.WriteLine($"[{packageFilename}]: {response.StatusDescription}");
+                    foreach (var header in response.Headers)
+                    {
+                        Console.WriteLine($"[{packageFilename}]: {header.Name}: {header.Value}");
+                    }
+                }
+            });
+
+            await Task.WhenAll(uploadPackageTasks);
         }
 
-        [Argument(0, Description = "Path to the package file")]
+        [Argument(0, Description = "Path to the package file. You can optionally use a glob pattern if you want to upload multiple packages.")]
         public string PackageFile { get; set; }
 
-        [Option("--owner", Description = "The owner if repository URL wasn't specified in nupkg/nuspec")]
+        [Option("--owner", Description = "The owner if repository URL wasn't specified in nupkg/nuspec.")]
         public string Owner { get; } = "GPR-TOOL-DEFAULT-OWNER";
+
+        [Option("--concurrency", Description = "The number of packages to upload simultaneously. Default value is 4.")]
+        public int Concurrency { get; set; } = 4;
     }
 
     [Command(Description = "View package details")]
