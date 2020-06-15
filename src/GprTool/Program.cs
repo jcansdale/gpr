@@ -462,13 +462,13 @@ namespace GprTool
         [Argument(0, Description = "Path to the package file")]
         public string PackageFilename { get; set; }
 
-        [Option("--repository", Description = "Override current nupkg repository url. Format: owner/repository. E.g: jcansdale/gpr")]
+        [Option("-r|--repository", Description = "Override current nupkg repository url. Format: owner/repository. E.g: jcansdale/gpr")]
         public string RepositoryUrl { get; set; }
 
-        [Option("--version", Description = "Override current nupkg version")]
+        [Option("-v|--version", Description = "Override current nupkg version")]
         public string Version { get; set; } 
 
-        [Option("--concurrency", Description = "The number of packages to upload simultaneously. Default value is 4.")]
+        [Option("-c|--concurrency", Description = "The number of packages to upload simultaneously. Default value is 4.")]
         public int Concurrency { get; set; } = 4;
     }
 
