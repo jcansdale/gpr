@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
 using NuGet.Packaging;
@@ -14,7 +13,6 @@ namespace GprTool
         public static bool ShouldRewriteNupkg(string nupkgPath, string repositoryUrl, NuGetVersion nuGetVersion = null)
         {
             if (nupkgPath == null) throw new ArgumentNullException(nameof(nupkgPath));
-            if (repositoryUrl == null) throw new ArgumentNullException(nameof(repositoryUrl));
 
             using var packageArchiveReader = new PackageArchiveReader(nupkgPath.OpenReadShared(), false);
 
@@ -36,10 +34,8 @@ namespace GprTool
             }
 
             var nuspecRepositoryUrl = repositoryXElement.Attribute("url")?.Value;
-            var nuspecRepositoryType = repositoryXElement.Attribute("type")?.Value;
-
-            return !string.Equals(repositoryUrl, nuspecRepositoryUrl, StringComparison.Ordinal) 
-                   || !string.Equals("git", nuspecRepositoryType, StringComparison.Ordinal);
+            
+            return !string.Equals(repositoryUrl, nuspecRepositoryUrl, StringComparison.Ordinal);
         }
 
         public static string RewriteNupkg(string nupkgPath, string repositoryUrl, NuGetVersion nuGetVersion = null)

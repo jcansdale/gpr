@@ -139,7 +139,6 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
         }
 
         [TestCase("1.0.0", "1.0.0", false)]
-        [TestCase("1.0.0", "1.0.0", false)]
         [TestCase("1.0.0", "1.0.1", true)]
         public void ShouldRewriteNupkg_Version(string currentVersion, string updatedVersion, bool shouldUpdateVersion)
         {
@@ -191,6 +190,30 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
                 NuGetUtilities.ShouldRewriteNupkg(
                     packageBuilderContext.NupkgFilename,
                     updatedRepositoryUrl), Is.EqualTo(shouldUpdateRepositoryUrl));
+        }
+
+        [TestCase(null)]
+        [TestCase("randomvalue")]
+        [TestCase("git")]
+        public void ShouldRewriteNupkg_Ignores_RepositoryType(string repositoryType)
+        {
+            const string currentRepositoryUrl = "https://github.com/jcansdale/gpr";
+
+            using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
+            {
+                manifest.Metadata.Repository = new RepositoryMetadata
+                {
+                    Url = currentRepositoryUrl,
+                    Type = repositoryType
+                };
+            }));
+
+            packageBuilderContext.Build();
+
+            Assert.That(
+                NuGetUtilities.ShouldRewriteNupkg(
+                    packageBuilderContext.NupkgFilename,
+                    repositoryType), Is.EqualTo(true));
         }
 
         [TestCase("https://github.com/owner/repo.git", "https://github.com/owner/repo.git")]
