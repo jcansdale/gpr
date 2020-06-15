@@ -32,44 +32,46 @@ namespace GprTool
     )]
     public class Program : GprCommandBase
     {
-        public async static Task Main(string[] args)
+        public static async Task<int> Main(string[] args)
         {
             try
             {
-                await CommandLineApplication.ExecuteAsync<Program>(args);
+                var exitCode = await CommandLineApplication.ExecuteAsync<Program>(args);
+                return exitCode;
             }
             catch(ApplicationException e)
             {
                 Console.WriteLine(e.Message);
+                return 1;
             }
         }
 
-        protected override Task OnExecute(CommandLineApplication app)
+        protected override Task<int> OnExecute(CommandLineApplication app)
         {
             // this shows help even if the --help option isn't specified
             app.ShowHelp();
-            return Task.CompletedTask;
+            return Task.FromResult(1);
         }
     }
 
     [Command(Description = "List files for a package")]
     public class FilesCommand : GprCommandBase
     {
-        protected override async Task OnExecute(CommandLineApplication app)
+        protected override async Task<int> OnExecute(CommandLineApplication app)
         {
             var connection = CreateConnection();
 
             if(PackagesPath is null)
             {
                 System.Console.WriteLine("Please include a packages path");
-                return;
+                return 1;
             }
 
             var packageCollection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath);
             if(packageCollection == null)
             {
                 Console.WriteLine("Couldn't find packages");
-                return;
+                return 1;
             }
 
             var query = packageCollection.Nodes.Select(p => 
@@ -119,6 +121,8 @@ namespace GprTool
             }
 
             Console.WriteLine($"Storage used {totalStorage/(1024*1024)} MB");
+
+            return 0;
         }
 
         [Argument(0, Description = "Path to packages the form `owner`, `owner/repo` or `owner/repo/package`")]
@@ -128,21 +132,21 @@ namespace GprTool
     [Command(Description = "Delete package versions")]
     public class DeleteCommand : GprCommandBase
     {
-        protected override async Task OnExecute(CommandLineApplication app)
+        protected override async Task<int> OnExecute(CommandLineApplication app)
         {
             var connection = CreateConnection();
 
             if(PackagesPath is null)
             {
                 System.Console.WriteLine("Please include a packages path");
-                return;
+                return 1;
             }
 
             var packageCollection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath);
             if(packageCollection == null)
             {
                 Console.WriteLine("Couldn't find packages");
-                return;
+                return 1;
             }
 
             var query = packageCollection.Nodes.Select(p => 
@@ -157,7 +161,8 @@ namespace GprTool
                     }).ToList()
                 }).Compile();
 
-            var packages = await connection.Run(query);
+            var packages = (await connection.Run(query)).ToList();
+            var packagesDeleted = 0;
 
             if (DockerCleanUp)
             {
@@ -172,12 +177,13 @@ namespace GprTool
                         if (success)
                         {
                             Console.WriteLine($"  Deleted '{version.Version}'");
+                            packagesDeleted++;
                         }
                     }
                 }
 
                 Console.WriteLine("Complete");
-                return;
+                goto done;
             }
 
             foreach(var package in packages)
@@ -191,6 +197,7 @@ namespace GprTool
 
                         var versionId = version.Id;
                         await DeletePackageVersion(connection, versionId);
+                        packagesDeleted++;
                     }
                     else
                     {
@@ -204,6 +211,9 @@ namespace GprTool
                 Console.WriteLine();
                 Console.WriteLine($"To delete these package versions, use the --force option.");
             }
+
+            done:
+            return packagesDeleted == packages.Count ? 0 : 1;
         }
 
         async Task<bool> DeletePackageVersion(IConnection connection, ID versionId)
@@ -235,7 +245,7 @@ namespace GprTool
     [Command(Description = "List packages for user or org (viewer if not specified)")]
     public class ListCommand : GprCommandBase
     {
-        protected override async Task OnExecute(CommandLineApplication app)
+        protected override async Task<int> OnExecute(CommandLineApplication app)
         {
             var connection = CreateConnection();
 
@@ -250,6 +260,8 @@ namespace GprTool
                     Console.WriteLine($"    {package.Name} ({package.PackageType}) [{string.Join(", ", package.Versions)}] ({package.DownloadsTotalCount} downloads)");
                 }
             }
+
+            return 0;
         }
 
         async Task<IEnumerable<PackageInfo>> GetPackages(IConnection connection)
@@ -343,7 +355,7 @@ namespace GprTool
             return Policy.WrapAsync(retryPolicy, timeoutPolicy);
         }
 
-        protected override async Task OnExecute(CommandLineApplication app)
+        protected override async Task<int> OnExecute(CommandLineApplication app)
         {
             var packageFiles = new List<PackageFile>();
             var glob = Glob.Parse(PackageFilename);
@@ -353,7 +365,7 @@ namespace GprTool
             if (RepositoryUrl != null && Version != null && !NuGetVersion.TryParse(Version, out nuGetVersion))
             {
                 Console.WriteLine($"Invalid version: {Version}");
-                return;
+                return 1;
             }
 
             if (isGlobPattern)
@@ -371,7 +383,7 @@ namespace GprTool
                 if (!packageFiles.Any())
                 {
                     Console.WriteLine($"Unable to find any packages in directory {baseDirectory} matching glob pattern: {glob}. Valid filename extensions are .nupkg, .snupkg.");
-                    return;
+                    return 1; 
                 }
             }
             else
@@ -384,7 +396,7 @@ namespace GprTool
                 if (!File.Exists(packageFile.Filename))
                 {
                     Console.WriteLine($"Package file was not found: {packageFile}");
-                    return;
+                    return 1;
                 }
 
                 if (RepositoryUrl == null)
@@ -405,7 +417,7 @@ namespace GprTool
                         $"Package filename: {packageFile.Filename} " +
                         "Please use --repository option to set a valid upstream GitHub repository. " +
                         "Additional details are available at: https://docs.microsoft.com/en-us/dotnet/core/tools/csproj#repositoryurl");
-                    return;
+                    return 1;
                 }
 
                 if (!NuGetUtilities.ShouldRewriteNupkg(packageFile.Filename, packageFile.RepositoryUrl, nuGetVersion))
@@ -435,7 +447,7 @@ namespace GprTool
                 {
                     try
                     {
-                        await UploadPackageAsync();
+                        return await UploadPackageAsync();
                     }
                     finally
                     {
@@ -443,7 +455,7 @@ namespace GprTool
                     }
                 });
 
-                async Task UploadPackageAsync()
+                async Task<bool> UploadPackageAsync()
                 {
                     await concurrencySemaphore.WaitAsync();
 
@@ -464,7 +476,7 @@ namespace GprTool
                     if (response.StatusCode == HttpStatusCode.OK)
                     {
                         Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {response.Content}");
-                        return;
+                        return true;
                     }
 
                     var nugetWarning = response.Headers.FirstOrDefault(h =>
@@ -472,7 +484,7 @@ namespace GprTool
                     if (nugetWarning != null)
                     {
                         Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {nugetWarning.Value}");
-                        return;
+                        return false;
                     }
 
                     Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {response.StatusDescription}");
@@ -480,10 +492,13 @@ namespace GprTool
                     {
                         Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {header.Name}: {header.Value}");
                     }
+
+                    return false;
                 }
             });
 
-            await Task.WhenAll(uploadPackageTasks);
+            var uploadPackageResults = await Task.WhenAll(uploadPackageTasks);
+            return uploadPackageResults.All(success => success) ? 0 : 1;
         }
 
         [Argument(0, Description = "Path to the package file")]
@@ -505,21 +520,21 @@ namespace GprTool
     [Command(Description = "View package details")]
     public class DetailsCommand : GprCommandBase
     {
-        protected override Task OnExecute(CommandLineApplication app)
+        protected override async Task<int> OnExecute(CommandLineApplication app)
         {
             var user = "GprTool";
             var token = GetAccessToken();
             var client = WithRestClient($"https://nuget.pkg.github.com/{Owner}/{Name}/{Version}.json");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.GET);
-            var response = client.Execute(request);
+            var response = await client.ExecuteAsync(request);
 
             if (response.StatusCode == HttpStatusCode.OK)
             {
                 var doc = JsonDocument.Parse(response.Content);
                 var json = JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
                 Console.WriteLine(json);
-                return Task.CompletedTask;
+                return 0;
             }
 
             var nugetWarning = response.Headers.FirstOrDefault(h =>
@@ -527,7 +542,7 @@ namespace GprTool
             if (nugetWarning != null)
             {
                 Console.WriteLine(nugetWarning.Value);
-                return Task.CompletedTask;
+                return 1;
             }
 
             Console.WriteLine(response.StatusDescription);
@@ -535,7 +550,8 @@ namespace GprTool
             {
                 Console.WriteLine($"{header.Name}: {header.Value}");
             }
-            return Task.CompletedTask;
+
+            return 1;
         }
 
         [Argument(0, Description = "Package owner")]
@@ -551,7 +567,7 @@ namespace GprTool
     [Command(Name = "setApiKey", Description = "Set GitHub API key/personal access token")]
     public class SetApiKeyCommand : GprCommandBase
     {
-        protected override Task OnExecute(CommandLineApplication app)
+        protected override Task<int> OnExecute(CommandLineApplication app)
         {
             var configFile = ConfigFile ?? NuGetUtilities.GetDefaultConfigFile(Warning);
             var source = PackageSource ?? "github";
@@ -570,12 +586,12 @@ namespace GprTool
                     Console.WriteLine($"There is currently no file at this location.");
                 }
 
-                return Task.CompletedTask;
+                return Task.FromResult(1);
             }
 
             NuGetUtilities.SetApiKey(configFile, ApiKey, source, Warning);
 
-            return Task.CompletedTask;
+            return Task.FromResult(0);
         }
 
         [Argument(0, Description = "Token / API key")]
@@ -591,12 +607,12 @@ namespace GprTool
     [Command(Name = "encode", Description = "Encode PAT to prevent it from being automatically deleted by GitHub")]
     public class EncodeCommand : GprCommandBase
     {
-        protected override Task OnExecute(CommandLineApplication app)
+        protected override Task<int> OnExecute(CommandLineApplication app)
         {
             if (Token == null)
             {
                 Console.WriteLine("No token was specified");
-                return Task.CompletedTask;
+                return Task.FromResult(1);
             }
 
             Console.WriteLine("An encoded token can be included in a public repository without being automatically deleted by GitHub.");
@@ -631,7 +647,7 @@ namespace GprTool
             Console.WriteLine($"//npm.pkg.github.com/:_authToken=\"{unicodeEncode}\"");
             Console.WriteLine();
 
-            return Task.CompletedTask;
+            return Task.FromResult(0);
         }
 
         static string XmlEncode(string str)
@@ -659,7 +675,7 @@ namespace GprTool
         protected string AssemblyProduct => Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyProductAttribute>()?.Product;
         protected string AssemblyInformationalVersion => ThisAssembly.AssemblyInformationalVersion;
         
-        protected abstract Task OnExecute(CommandLineApplication app);
+        protected abstract Task<int> OnExecute(CommandLineApplication app);
 
         protected RestClient WithRestClient(string baseUrl, Action<RestClient> builderAction = null)
         { 
