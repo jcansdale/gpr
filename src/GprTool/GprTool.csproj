@@ -5,6 +5,7 @@
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <Authors>Jamie Cansdale</Authors>
     <Company>Mutant Design Limited</Company>
+    <Product>GprTool</Product>
   </PropertyGroup>
 
   <PropertyGroup>
