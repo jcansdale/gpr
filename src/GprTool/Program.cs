@@ -5,12 +5,14 @@ using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Reflection;
 using McMaster.Extensions.CommandLineUtils;
 using RestSharp;
 using RestSharp.Authenticators;
 using Octokit.GraphQL;
 using Octokit.GraphQL.Model;
 using Octokit.GraphQL.Core;
+using RestSharp.Extensions;
 
 namespace GprTool
 {
@@ -322,7 +324,7 @@ namespace GprTool
         {
             var user = "GprTool";
             var token = GetAccessToken();
-            var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/");
+            var client = WithRestClient($"https://nuget.pkg.github.com/{Owner}/");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.PUT);
             request.AddFile("package", PackageFile);
@@ -364,7 +366,7 @@ namespace GprTool
         {
             var user = "GprTool";
             var token = GetAccessToken();
-            var client = new RestClient($"https://nuget.pkg.github.com/{Owner}/{Name}/{Version}.json");
+            var client = WithRestClient($"https://nuget.pkg.github.com/{Owner}/{Name}/{Version}.json");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.GET);
             var response = client.Execute(request);
@@ -511,11 +513,23 @@ namespace GprTool
     [HelpOption("--help")]
     public abstract class GprCommandBase
     {
+        protected string AssemblyProduct => Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyProductAttribute>()?.Product;
+        protected string AssemblyInformationalVersion => ThisAssembly.AssemblyInformationalVersion;
+        
         protected abstract Task OnExecute(CommandLineApplication app);
+
+        protected RestClient WithRestClient(string baseUrl)
+        {
+            return new RestClient(baseUrl)
+            {
+                UserAgent = $"{AssemblyProduct}/{AssemblyInformationalVersion}"
+            };
+        }
 
         protected IConnection CreateConnection()
         {
-            var productInformation = new ProductHeaderValue("GprTool", ThisAssembly.AssemblyInformationalVersion);
+            var productInformation = new ProductHeaderValue(AssemblyProduct, AssemblyInformationalVersion);
+            
             var token = GetAccessToken();
 
             var connection = new Connection(productInformation, new Uri("https://api.github.com/graphql"), token);
