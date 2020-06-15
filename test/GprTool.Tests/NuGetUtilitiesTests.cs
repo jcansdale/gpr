@@ -138,6 +138,28 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
             Assert.That(packageSourceCredentialsElements.Count, Is.EqualTo(1));
         }
 
+        [Test]
+        public void ReadNupkgManifest()
+        {
+            using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
+            {
+                manifest.Metadata.Version = new NuGetVersion("1.0.0");
+                manifest.Metadata.Repository = new RepositoryMetadata
+                {
+                    Url = "https://github.com/jcansdale/gpr",
+                    Type = "git"
+                };
+            }));
+
+            packageBuilderContext.Build();
+
+            var manifest = NuGetUtilities.ReadNupkgManifest(packageBuilderContext.NupkgFilename);
+            Assert.That(manifest, Is.Not.Null);
+            Assert.That(manifest.Metadata.Version, Is.EqualTo(packageBuilderContext.NuspecContext.Manifest.Metadata.Version));
+            Assert.That(manifest.Metadata.Repository, Is.Not.Null);
+            Assert.That(manifest.Metadata.Repository.Url, Is.EqualTo(packageBuilderContext.NuspecContext.Manifest.Metadata.Repository.Url));
+        }
+
         [TestCase("1.0.0", "1.0.0", false)]
         [TestCase("1.0.0", "1.0.1", true)]
         public void ShouldRewriteNupkg_Version(string currentVersion, string updatedVersion, bool shouldUpdateVersion)

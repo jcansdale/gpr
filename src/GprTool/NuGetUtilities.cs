@@ -10,6 +10,13 @@ namespace GprTool
 {
     public class NuGetUtilities
     {
+        public static Manifest ReadNupkgManifest(string nupkgPath)
+        {
+            if (nupkgPath == null) throw new ArgumentNullException(nameof(nupkgPath));
+            using var packageArchiveReader = new PackageArchiveReader(nupkgPath.ReadSharedToStream());
+            return Manifest.ReadFrom(packageArchiveReader.GetNuspec(), false);
+        }
+
         public static bool ShouldRewriteNupkg(string nupkgPath, string repositoryUrl, NuGetVersion nuGetVersion = null)
         {
             if (nupkgPath == null) throw new ArgumentNullException(nameof(nupkgPath));

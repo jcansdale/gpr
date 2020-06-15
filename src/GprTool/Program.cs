@@ -322,7 +322,7 @@ namespace GprTool
     {
         protected override Task OnExecute(CommandLineApplication app)
         {
-            var owner = "GPR-TOOL-DEFAULT-OWNER";
+            string owner = null;
             string rewrittenPackageFile = null;
 
             if (Repository != null)
@@ -334,26 +334,41 @@ namespace GprTool
                     return Task.CompletedTask;
                 }
 
-                var ownerAndRepositoryName = Repository
-                    .Replace("\\", "/")
-                    .Split("/", StringSplitOptions.RemoveEmptyEntries)
-                    .Take(2)
-                    .ToList();
+                var (githubOwner, githubRepositoryName, githubRepositoryUri) = Repository.BuildGithubRepositoryDetails();
 
-                if (ownerAndRepositoryName.Count != 2)
+                if (githubOwner == null
+                    || githubRepositoryName == null
+                    || githubRepositoryUri == null 
+                    || githubRepositoryUri.Host != "github.com")
                 {
                     Console.WriteLine(
                         "Invalid repository value. Please use the following format: owner/repository. E.g: jcansdale/gpr");
                     return Task.CompletedTask;
                 }
 
-                owner = ownerAndRepositoryName[0];
-                var repositoryName = ownerAndRepositoryName[1];
-                var repositoryUrl = $"https://github.com/{owner}/{repositoryName}";
+                owner = githubOwner;
 
-                if (NuGetUtilities.ShouldRewriteNupkg(PackageFile, repositoryUrl, nuGetVersion))
+                if (NuGetUtilities.ShouldRewriteNupkg(PackageFile, githubRepositoryUri.ToString(), nuGetVersion))
                 {
-                    rewrittenPackageFile = NuGetUtilities.RewriteNupkg(PackageFile, repositoryUrl, nuGetVersion);
+                    rewrittenPackageFile = NuGetUtilities.RewriteNupkg(PackageFile, githubRepositoryUri.ToString(), nuGetVersion);
+                }
+            }
+            else
+            {
+                var manifest = NuGetUtilities.ReadNupkgManifest(PackageFile);
+                var manifestRepositoryUrl = manifest.Metadata.Repository?.Url;
+                
+                var (githubOwner, githubRepositoryName, githubRepositoryUri) = manifestRepositoryUrl.BuildGithubRepositoryDetails();
+
+                if (githubOwner == null
+                    || githubRepositoryName == null
+                    || githubRepositoryUri == null 
+                    || githubRepositoryUri.Host != "github.com")
+                {
+                    Console.WriteLine($"Package is missing a valid <RepositoryUrl /> XML element value: {manifestRepositoryUrl} " +
+                                      "Please use --repository option to set a valid upstream GitHub repository. " +
+                                      "Additional details are available at: https://docs.microsoft.com/en-us/dotnet/core/tools/csproj#repositoryurl");
+                    return Task.CompletedTask;
                 }
             }
 
