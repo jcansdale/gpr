@@ -6,7 +6,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Build docker image
-      run: docker build . -t containers.pkg.github.com/mutantdesign/gpr:windows --build-arg READ_PACKAGES_TOKEN=${{ secrets.READ_PACKAGES_TOKEN }}
+      run: docker build . -t containers.pkg.github.com/jcansdale/gpr:windows --build-arg READ_PACKAGES_TOKEN=${{ secrets.READ_PACKAGES_TOKEN }}
     - name: Publish to GHCR
       run: |
         docker login https://containers.pkg.github.com -u jcansdale -p ${{ secrets.GHCR_TOKEN }}
