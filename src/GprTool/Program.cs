@@ -639,26 +639,26 @@ namespace GprTool
 
         public string GetAccessToken()
         {
-            if (AccessToken is string accessToken)
+            if (AccessToken is { } accessToken)
             {
-                return accessToken;
+                return accessToken.Trim();
             }
 
-            if (NuGetUtilities.FindTokenInNuGetConfig(Warning) is string configToken)
+            if (NuGetUtilities.FindTokenInNuGetConfig(Warning) is { } configToken)
             {
-                return configToken;
+                return configToken.Trim();
             }
 
-            if (FindReadPackagesToken() is string readToken)
+            if (FindReadPackagesToken() is { } readToken)
             {
-                return readToken;
+                return readToken.Trim();
             }
 
             throw new ApplicationException("Couldn't find personal access token");
         }
 
         static string FindReadPackagesToken() =>
-            (Environment.GetEnvironmentVariable("READ_PACKAGES_TOKEN") is string token && token != string.Empty) ? token : null;
+            Environment.GetEnvironmentVariable("READ_PACKAGES_TOKEN") is { } token && token != string.Empty ? token.Trim() : null;
 
         protected void Warning(string line) => Console.WriteLine(line);
 
