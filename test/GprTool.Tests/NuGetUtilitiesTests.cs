@@ -143,6 +143,7 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
         [TestCase("https://github.com/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
         [TestCase("https://github.com/jcansdale\\gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
         [TestCase("https://github.com/jcansdale///////gpr", "jcansdale", "gpr", "https://github.com/jcansdale///////gpr")]
+        [TestCase("  https://github.com/jcansdale/gpr ", "jcansdale", "gpr", "https://github.com/jcansdale/gpr", Description = "Whitespace")]
         public void BuildPackageFile(string repositoryUrl, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
         {
             var packageFile = NuGetUtilities.BuildPackageFile("test.nupkg", repositoryUrl);
