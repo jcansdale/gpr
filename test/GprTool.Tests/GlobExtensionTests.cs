@@ -8,6 +8,8 @@ class GlobExtensionTests
     [TestCase("c:\\test.nupkg", false)]
     [TestCase("c:\\test", false)]
     [TestCase("c:\\test\\**", true)]
+    [TestCase("c:\\test?\\**", true)]
+    [TestCase("c:\\test?\\[abc]\\**", true)]
     [TestCase("c:\\test\\**\\*.nupkg", true)]
     public void IsGlobPattern(string path, bool isGlobPattern)
     {
@@ -17,6 +19,8 @@ class GlobExtensionTests
 
     [TestCase("c:\\test.nupkg", "c:\\test.nupkg")]
     [TestCase("c:\\test", "c:\\test")]
+    [TestCase("c:\\test?\\**", "c:\\test")]
+    [TestCase("c:\\test?\\[abc]\\**", "c:\\test")]
     [TestCase("c:\\test\\**", "c:\\test")]
     [TestCase("c:\\test\\**\\*.nupkg", "c:\\test")]
     [TestCase("c:\\test\\subdirectory\\**\\*.nupkg", "c:\\test\\subdirectory")]
