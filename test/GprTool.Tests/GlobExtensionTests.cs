@@ -11,6 +11,7 @@ class GlobExtensionTests
     [TestCase("c:\\test?\\**", true)]
     [TestCase("c:\\test?\\[abc]\\**", true)]
     [TestCase("c:\\test\\**\\*.nupkg", true)]
+    [TestCase("c:\\test\\*.*", true)]
     public void IsGlobPattern(string path, bool isGlobPattern)
     {
         var glob = Glob.Parse(path);
@@ -19,6 +20,7 @@ class GlobExtensionTests
 
     [TestCase("c:\\test.nupkg", "c:\\test.nupkg")]
     [TestCase("c:\\test", "c:\\test")]
+    [TestCase("c:\\test\\*.*", "c:\\test")]
     [TestCase("c:\\test?\\**", "c:\\test")]
     [TestCase("c:\\test?\\[abc]\\**", "c:\\test")]
     [TestCase("c:\\test\\**", "c:\\test")]
