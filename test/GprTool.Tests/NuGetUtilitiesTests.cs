@@ -139,10 +139,13 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
         }
 
         [TestCase(null, null, null, null)]
-        [TestCase("jcansdale/gpr", null, null, null)]
+        [TestCase("jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+        [TestCase("jcansdale//gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+        [TestCase("/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+        [TestCase("http://github.com/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
         [TestCase("https://github.com/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
         [TestCase("https://github.com/jcansdale\\gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-        [TestCase("https://github.com/jcansdale///////gpr", "jcansdale", "gpr", "https://github.com/jcansdale///////gpr")]
+        [TestCase("https://github.com/jcansdale///////gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
         [TestCase("  https://github.com/jcansdale/gpr ", "jcansdale", "gpr", "https://github.com/jcansdale/gpr", Description = "Whitespace")]
         public void BuildPackageFile(string repositoryUrl, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
         {
@@ -154,14 +157,12 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
                 Assert.Null(packageFile.Owner);
                 Assert.Null(packageFile.RepositoryName);
                 Assert.That(packageFile.RepositoryUrl, Is.Null);
-                Assert.False(packageFile.IsGithubRepository);
                 return;
             }
             Assert.That(packageFile.Owner, Is.EqualTo(expectedOwner));
             Assert.That(packageFile.RepositoryName, Is.EqualTo(expectedRepositoryName));
             Assert.That(packageFile.RepositoryUrl, Is.Not.Null);
             Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
-            Assert.That(packageFile.IsGithubRepository);
         }
 
         [TestCase("test.nupkg", "test.nupkg")]

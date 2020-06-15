@@ -398,7 +398,7 @@ namespace GprTool
 
                 if (packageFile.Owner == null
                     || packageFile.RepositoryName == null
-                    || !packageFile.IsGithubRepository)
+                    || packageFile.RepositoryUrl == null)
                 {
                     Console.WriteLine(
                         $"Project is missing a valid <RepositoryUrl /> XML element value: {packageFile.RepositoryUrl}. " +

@@ -15,7 +15,6 @@ namespace GprTool
         public string Owner { get; set; }
         public string RepositoryName { get; set; }
         public string RepositoryUrl { get; set; }
-        public bool IsGithubRepository { get; set; }
         public bool IsNuspecRewritten { get; set; }
 
         public string FilenameWithoutGprPrefixAndPath
@@ -42,17 +41,37 @@ namespace GprTool
     {
         public static bool BuildOwnerAndRepositoryFromUrl(PackageFile packageFile, string repositoryUrl)
         {
-            if (repositoryUrl == null 
-                || !Uri.TryCreate(repositoryUrl, UriKind.Absolute, out var repositoryUri))
+            if (repositoryUrl == null)
             {
                 return false;
+            }
+
+            repositoryUrl = repositoryUrl.Trim();
+
+            if (Uri.IsWellFormedUriString(repositoryUrl, UriKind.Relative))
+            {
+                repositoryUrl = $"https://github.com/{repositoryUrl}";
+            }
+
+            if (!Uri.TryCreate(repositoryUrl, UriKind.Absolute, out var repositoryUri) 
+                || repositoryUri.Host != "github.com")
+            {
+                return false;
+            }
+
+            if (repositoryUri.Scheme != Uri.UriSchemeHttps)
+            {
+                repositoryUri = new UriBuilder(repositoryUri)
+                {
+                    Scheme = Uri.UriSchemeHttps, 
+                    Port = -1
+                }.Uri;
             }
 
             var ownerAndRepositoryName = repositoryUri.PathAndQuery
                 .Substring(1)
                 .Replace("\\", "/")
                 .Split("/", StringSplitOptions.RemoveEmptyEntries)
-                .Take(2)
                 .ToList();
 
             if (ownerAndRepositoryName.Count != 2)
@@ -62,8 +81,7 @@ namespace GprTool
 
             packageFile.Owner = ownerAndRepositoryName[0];
             packageFile.RepositoryName = ownerAndRepositoryName[1];
-            packageFile.RepositoryUrl = repositoryUri.ToString();
-            packageFile.IsGithubRepository = string.Equals("github.com", repositoryUri.Host, StringComparison.OrdinalIgnoreCase);
+            packageFile.RepositoryUrl = $"https://github.com/{packageFile.Owner}/{packageFile.RepositoryName}";
 
             return true;
         }
