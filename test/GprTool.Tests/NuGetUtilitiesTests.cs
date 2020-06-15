@@ -138,6 +138,49 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
             Assert.That(packageSourceCredentialsElements.Count, Is.EqualTo(1));
         }
 
+        [TestCase(null, null, null, null)]
+        [TestCase("jcansdale/gpr", null, null, null)]
+        [TestCase("https://github.com/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+        [TestCase("https://github.com/jcansdale\\gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+        [TestCase("https://github.com/jcansdale///////gpr", "jcansdale", "gpr", "https://github.com/jcansdale///////gpr")]
+        public void BuildPackageFile(string repositoryUrl, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
+        {
+            var packageFile = NuGetUtilities.BuildPackageFile("test.nupkg", repositoryUrl);
+            Assert.That(packageFile, Is.Not.Null);
+            Assert.That(packageFile.Filename, Is.EqualTo("test.nupkg"));
+            if (expectedGithubRepositoryUrl == null)
+            {
+                Assert.Null(packageFile.Owner);
+                Assert.Null(packageFile.RepositoryName);
+                Assert.That(packageFile.RepositoryUrl, Is.Null);
+                Assert.False(packageFile.IsGithubRepository);
+                return;
+            }
+            Assert.That(packageFile.Owner, Is.EqualTo(expectedOwner));
+            Assert.That(packageFile.RepositoryName, Is.EqualTo(expectedRepositoryName));
+            Assert.That(packageFile.RepositoryUrl, Is.Not.Null);
+            Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
+            Assert.That(packageFile.IsGithubRepository);
+        }
+
+        [TestCase("test.nupkg", "test.nupkg")]
+        [TestCase("test.snupkg", "test.snupkg")]
+        [TestCase("test_gpr.nupkg", "test.nupkg")]
+        [TestCase("test_gpr.snupkg", "test.snupkg")]
+        [TestCase("test_GPR.nupkg", "test.nupkg")]
+        [TestCase("test_GPR.snupkg", "test.snupkg")]
+        [TestCase("test_GPR.nUpkG", "test.nUpkG", Description = "Preserves casing")]
+        [TestCase("test_GPR.SnuPkg", "test.SnuPkg", Description = "Preserves casing")]
+        public void PackageFile_FilenameWithoutGprPrefixAndPath(string filename, string expectedFilename)
+        {
+            var packageFile = new PackageFile
+            {
+                Filename = filename,
+                IsNuspecRewritten = true
+            };
+            Assert.That(packageFile.FilenameWithoutGprPrefixAndPath, Is.EqualTo(expectedFilename));
+        }
+
         [Test]
         public void ReadNupkgManifest()
         {
@@ -185,8 +228,8 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
         }
 
         [TestCase("https://github.com/owner/repo.git", "https://github.com/owner/repo.git", false, Description = "Equals")]
+        [TestCase("https://github.com/owner/repo", "https://github.com/owner/REPO", false, Description = "Case insensitive")]
         [TestCase("https://github.com/owner/repo", "https://github.com/owner/repo.git", true, Description = "Url ends with .git")]
-        [TestCase("https://github.com/owner/repo", "https://github.com/owner/REPO", true, Description = "Case insensitive")]
         [TestCase(null, "https://github.com/owner/repo.git", true)]
         [TestCase("https://google.com", "https://github.com/owner/repo.git", true)]
         public void ShouldRewriteNupkg_RepositoryUrl(string currentRepositoryUrl, string updatedRepositoryUrl, bool shouldUpdateRepositoryUrl)
@@ -214,7 +257,6 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
                     updatedRepositoryUrl), Is.EqualTo(shouldUpdateRepositoryUrl));
         }
 
-        [TestCase(null)]
         [TestCase("randomvalue")]
         [TestCase("git")]
         public void ShouldRewriteNupkg_Ignores_RepositoryType(string repositoryType)
@@ -235,7 +277,7 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
             Assert.That(
                 NuGetUtilities.ShouldRewriteNupkg(
                     packageBuilderContext.NupkgFilename,
-                    repositoryType), Is.EqualTo(true));
+                    currentRepositoryUrl), Is.EqualTo(false));
         }
 
         [TestCase("https://github.com/owner/repo.git", "https://github.com/owner/repo.git")]

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
 using NuGet.Packaging;
@@ -8,8 +9,98 @@ using NuGet.Versioning;
 
 namespace GprTool
 {
+    public class PackageFile
+    {
+        public string Filename { get; set; }
+        public string Owner { get; set; }
+        public string RepositoryName { get; set; }
+        public string RepositoryUrl { get; set; }
+        public bool IsGithubRepository { get; set; }
+        public bool IsNuspecRewritten { get; set; }
+
+        public string FilenameWithoutGprPrefixAndPath
+        {
+            get
+            {
+                var gprIndex = !IsNuspecRewritten ? -1 : Filename.LastIndexOf("_gpr", StringComparison.OrdinalIgnoreCase);
+                if (gprIndex == -1)
+                {
+                    return Filename;
+                }
+
+                // Support case sensitive filename extensions (e.g. test_gpr.NuPkg -> test.NuPkg)
+
+                var filenameUntilGpr = Filename.Substring(0, gprIndex);
+                var filenameExcludingGpr = Filename.Substring(gprIndex + 4);
+
+                return Path.GetFileName(filenameUntilGpr + filenameExcludingGpr);
+            }
+        }
+    }
+
     public class NuGetUtilities
     {
+        public static bool BuildOwnerAndRepositoryFromUrl(PackageFile packageFile, string repositoryUrl)
+        {
+            if (repositoryUrl == null 
+                || !Uri.TryCreate(repositoryUrl, UriKind.Absolute, out var repositoryUri))
+            {
+                return false;
+            }
+
+            var ownerAndRepositoryName = repositoryUri.PathAndQuery
+                .Substring(1)
+                .Replace("\\", "/")
+                .Split("/", StringSplitOptions.RemoveEmptyEntries)
+                .Take(2)
+                .ToList();
+
+            if (ownerAndRepositoryName.Count != 2)
+            {
+                return false;
+            }
+
+            packageFile.Owner = ownerAndRepositoryName[0];
+            packageFile.RepositoryName = ownerAndRepositoryName[1];
+            packageFile.RepositoryUrl = repositoryUri.ToString();
+            packageFile.IsGithubRepository = string.Equals("github.com", repositoryUri.Host, StringComparison.OrdinalIgnoreCase);
+
+            return true;
+        }
+
+        public static bool TryReadPackageFileMetadata(PackageFile packageFile)
+        {
+            if (!File.Exists(packageFile.Filename))
+            {
+                return false;
+            }
+
+            Manifest manifest;
+
+            try
+            {
+                manifest = ReadNupkgManifest(packageFile.Filename);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            return BuildOwnerAndRepositoryFromUrl(packageFile, manifest.Metadata.Repository?.Url);
+        }
+
+        public static PackageFile BuildPackageFile(string filename, string repositoryUrl)
+        {
+            var packageFile = new PackageFile
+            {
+                Filename = filename
+            };
+
+            BuildOwnerAndRepositoryFromUrl(packageFile, repositoryUrl);
+
+            return packageFile;
+        }
+
         public static Manifest ReadNupkgManifest(string nupkgPath)
         {
             if (nupkgPath == null) throw new ArgumentNullException(nameof(nupkgPath));
@@ -21,28 +112,14 @@ namespace GprTool
         {
             if (nupkgPath == null) throw new ArgumentNullException(nameof(nupkgPath));
 
-            using var packageArchiveReader = new PackageArchiveReader(nupkgPath.OpenReadShared(), false);
+            var manifest = ReadNupkgManifest(nupkgPath);
 
-            var nuspecXDocument = packageArchiveReader.NuspecReader.Xml;
-            var packageXElement = nuspecXDocument.Single("package");
-            var metadataXElement = packageXElement.Single("metadata");
-            var versionXElement = metadataXElement.Single("version");
-
-            if (!NuGetVersion.TryParse(versionXElement.Value, out var nuspecVersion)
-                || nuGetVersion != null && !nuGetVersion.Equals(nuspecVersion))
+            if (nuGetVersion != null && !nuGetVersion.Equals(manifest.Metadata.Version))
             {
                 return true;
             }
-
-            var repositoryXElement = metadataXElement.SingleOrDefault("repository");
-            if (repositoryXElement == null)
-            {
-                return true;
-            }
-
-            var nuspecRepositoryUrl = repositoryXElement.Attribute("url")?.Value;
             
-            return !string.Equals(repositoryUrl, nuspecRepositoryUrl, StringComparison.Ordinal);
+            return !string.Equals(repositoryUrl, manifest.Metadata.Repository?.Url, StringComparison.OrdinalIgnoreCase);
         }
 
         public static string RewriteNupkg(string nupkgPath, string repositoryUrl, NuGetVersion nuGetVersion = null)

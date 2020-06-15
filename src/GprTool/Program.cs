@@ -5,8 +5,9 @@ using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Threading;
+using DotNet.Globbing;
 using McMaster.Extensions.CommandLineUtils;
-using NuGet.Packaging;
 using NuGet.Versioning;
 using RestSharp;
 using RestSharp.Authenticators;
@@ -320,106 +321,155 @@ namespace GprTool
     [Command(Description = "Publish a package")]
     public class PushCommand : GprCommandBase
     {
-        protected override Task OnExecute(CommandLineApplication app)
+        protected override async Task OnExecute(CommandLineApplication app)
         {
-            string owner = null;
-            string rewrittenPackageFile = null;
+            var packageFiles = new List<PackageFile>();
+            var glob = Glob.Parse(PackageFilename);
+            var isGlobPattern = glob.IsGlobPattern();
 
-            if (Repository != null)
+            NuGetVersion nuGetVersion = null;
+            if (RepositoryUrl != null && Version != null && !NuGetVersion.TryParse(Version, out nuGetVersion))
             {
-                NuGetVersion nuGetVersion = null;
-                if (Version != null && !NuGetVersion.TryParse(Version, out nuGetVersion))
+                Console.WriteLine($"Invalid version: {Version}");
+                return;
+            }
+ 
+            if (isGlobPattern)
+            {
+	            var fallbackBaseDirectory = Directory.GetCurrentDirectory();
+	            var baseDirectory = glob.BuildBasePathFromGlob(fallbackBaseDirectory);
+	            packageFiles.AddRange(Directory
+		            .GetFiles(baseDirectory, "*.*", SearchOption.AllDirectories)
+		            .Where(x => 
+			            x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase) 
+			            || x.EndsWith(".snupkg", StringComparison.OrdinalIgnoreCase))
+		            .Where(filename => glob.IsMatch(filename))
+                    .Select(filename => NuGetUtilities.BuildPackageFile(filename, RepositoryUrl)));
+
+	            if (!packageFiles.Any())
+	            {
+		            Console.WriteLine($"Unable to find any packages in directory {baseDirectory} matching glob pattern: {glob}. Valid filename extensions are .nupkg, .snupkg.");
+		            return;
+	            }
+            }
+            else
+            {
+                packageFiles.Add(NuGetUtilities.BuildPackageFile(Path.GetFullPath(PackageFilename), RepositoryUrl));
+            }
+
+            foreach (var packageFile in packageFiles)
+            {
+                if (!File.Exists(packageFile.Filename))
                 {
-                    Console.WriteLine("Unable to parse version");
-                    return Task.CompletedTask;
+                    Console.WriteLine($"Package file was not found: {packageFile}");
+                    return;
                 }
 
-                var (githubOwner, githubRepositoryName, githubRepositoryUri) = Repository.BuildGithubRepositoryDetails();
+                if (RepositoryUrl == null)
+                {
+                    NuGetUtilities.TryReadPackageFileMetadata(packageFile);
+                }
+                else
+                {
+                    NuGetUtilities.BuildOwnerAndRepositoryFromUrl(packageFile, RepositoryUrl);
+                }
 
-                if (githubOwner == null
-                    || githubRepositoryName == null
-                    || githubRepositoryUri == null 
-                    || githubRepositoryUri.Host != "github.com")
+                if (packageFile.Owner == null
+                    || packageFile.RepositoryName == null
+                    || !packageFile.IsGithubRepository)
                 {
                     Console.WriteLine(
-                        "Invalid repository value. Please use the following format: owner/repository. E.g: jcansdale/gpr");
-                    return Task.CompletedTask;
+                        $"Project is missing a valid <RepositoryUrl /> XML element value: {packageFile.RepositoryUrl}. " +
+                        $"Package filename: {packageFile.Filename} " +
+                        "Please use --repository option to set a valid upstream GitHub repository. " +
+                        "Additional details are available at: https://docs.microsoft.com/en-us/dotnet/core/tools/csproj#repositoryurl");
+                    return;
                 }
 
-                owner = githubOwner;
-
-                if (NuGetUtilities.ShouldRewriteNupkg(PackageFile, githubRepositoryUri.ToString(), nuGetVersion))
+                if (!NuGetUtilities.ShouldRewriteNupkg(packageFile.Filename, packageFile.RepositoryUrl, nuGetVersion))
                 {
-                    rewrittenPackageFile = NuGetUtilities.RewriteNupkg(PackageFile, githubRepositoryUri.ToString(), nuGetVersion);
+                    continue;
                 }
-            }
-            else
-            {
-                var manifest = NuGetUtilities.ReadNupkgManifest(PackageFile);
-                var manifestRepositoryUrl = manifest.Metadata.Repository?.Url;
-                
-                var (githubOwner, githubRepositoryName, githubRepositoryUri) = manifestRepositoryUrl.BuildGithubRepositoryDetails();
 
-                if (githubOwner == null
-                    || githubRepositoryName == null
-                    || githubRepositoryUri == null 
-                    || githubRepositoryUri.Host != "github.com")
-                {
-                    Console.WriteLine($"Package is missing a valid <RepositoryUrl /> XML element value: {manifestRepositoryUrl} " +
-                                      "Please use --repository option to set a valid upstream GitHub repository. " +
-                                      "Additional details are available at: https://docs.microsoft.com/en-us/dotnet/core/tools/csproj#repositoryurl");
-                    return Task.CompletedTask;
-                }
+                packageFile.Filename = NuGetUtilities.RewriteNupkg(packageFile.Filename, packageFile.RepositoryUrl, nuGetVersion);
+                packageFile.IsNuspecRewritten = true;
             }
 
-            var user = "GprTool";
+            const string user = "GprTool";
             var token = GetAccessToken();
-            var client = new RestClient($"https://nuget.pkg.github.com/{owner}/");
-            client.Authenticator = new HttpBasicAuthenticator(user, token);
-            var request = new RestRequest(Method.PUT);
-            if (rewrittenPackageFile != null)
-            {
-                using var packageStream = rewrittenPackageFile.ReadSharedToStream();
 
-                rewrittenPackageFile = rewrittenPackageFile.Replace("_gpr.nupkg", ".nupkg", StringComparison.OrdinalIgnoreCase);
-                request.AddFile("package", packageStream.ToArray(), Path.GetFileName(rewrittenPackageFile));
-            }
-            else
-            {
-                request.AddFile("package", PackageFile);
-            }
-            var response = client.Execute(request);
+            using var concurrencySemaphore = new SemaphoreSlim(Math.Max(1, Concurrency));
 
-            if (response.StatusCode == HttpStatusCode.OK)
-            {
-                Console.WriteLine(response.Content);
-                return Task.CompletedTask;
-            }
+            Console.WriteLine($"Found {packageFiles.Count} package{(packageFiles.Count > 1 ? "s" : string.Empty)}.");
 
-            var nugetWarning = response.Headers.FirstOrDefault(h =>
-                h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase));
-            if (nugetWarning != null)
+            var uploadPackageTasks = packageFiles.Select(packageFile =>
             {
-                Console.WriteLine(nugetWarning.Value);
-                return Task.CompletedTask;
-            }
+                return Task.Run(async () =>
+	            {
+		            try
+		            {
+			            await UploadPackageAsync();
+		            }
+		            finally
+		            {
+			            concurrencySemaphore.Dispose();
+		            }
+	            });
 
-            Console.WriteLine(response.StatusDescription);
-            foreach (var header in response.Headers)
-            {
-                Console.WriteLine($"{header.Name}: {header.Value}");
-            }
-            return Task.CompletedTask;
+	            async Task UploadPackageAsync()
+	            {
+		            await concurrencySemaphore.WaitAsync();
+
+		            var request = new RestRequest(Method.PUT);
+                    
+                    await using var packageStream = packageFile.Filename.ReadSharedToStream();
+                    request.AddFile("package", packageStream.ToArray(), packageFile.FilenameWithoutGprPrefixAndPath);
+
+                    var client = new RestClient($"https://nuget.pkg.github.com/{packageFile.Owner}/")
+                    {
+                        Authenticator = new HttpBasicAuthenticator(user, token)
+                    };
+
+		            var response = await client.ExecuteAsync(request);
+
+                    Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: Uploading package.");
+
+		            if (response.StatusCode == HttpStatusCode.OK)
+		            {
+			            Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {response.Content}");
+			            return;
+		            }
+
+		            var nugetWarning = response.Headers.FirstOrDefault(h =>
+			            h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase));
+		            if (nugetWarning != null)
+		            {
+			            Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {nugetWarning.Value}");
+			            return;
+		            }
+
+		            Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {response.StatusDescription}");
+		            foreach (var header in response.Headers)
+		            {
+			            Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {header.Name}: {header.Value}");
+		            }
+	            }
+            });
+
+            await Task.WhenAll(uploadPackageTasks);
         }
 
         [Argument(0, Description = "Path to the package file")]
-        public string PackageFile { get; set; }
+        public string PackageFilename { get; set; }
 
         [Option("--repository", Description = "Override current nupkg repository url. Format: owner/repository. E.g: jcansdale/gpr")]
-        public string Repository { get; set; }
+        public string RepositoryUrl { get; set; }
 
         [Option("--version", Description = "Override current nupkg version")]
         public string Version { get; set; } 
+
+        [Option("--concurrency", Description = "The number of packages to upload simultaneously. Default value is 4.")]
+        public int Concurrency { get; set; } = 4;
     }
 
     [Command(Description = "View package details")]
