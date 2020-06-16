@@ -401,9 +401,9 @@ namespace GprTool
 
                 packageFiles.AddRange(Directory
                     .GetFiles(searchDirectory, "*.*", SearchOption.AllDirectories)
-                    .Where(x =>
-                        x.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase)
-                        || x.EndsWith(".snupkg", StringComparison.OrdinalIgnoreCase))
+                    .Where(filename =>
+                        filename.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase)
+                        || filename.EndsWith(".snupkg", StringComparison.OrdinalIgnoreCase))
                     .Where(filename => glob.IsMatch(filename))
                     .Select(filename => NuGetUtilities.BuildPackageFile(filename, RepositoryUrl)));
 
