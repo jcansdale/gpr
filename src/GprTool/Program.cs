@@ -454,7 +454,6 @@ namespace GprTool
                 NuGetVersion nuGetVersion, string token, IAsyncPolicy<IRestResponse> retryPolicy, CancellationToken cancellationToken)
             {
                 if (packageFile == null) throw new ArgumentNullException(nameof(packageFile));
-                if (nuGetVersion == null) throw new ArgumentNullException(nameof(nuGetVersion));
 
                 cancellationToken.ThrowIfCancellationRequested();
 
