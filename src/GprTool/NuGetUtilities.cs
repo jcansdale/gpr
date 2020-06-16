@@ -14,7 +14,6 @@ namespace GprTool
         public string Owner { get; set; }
         public string RepositoryName { get; set; }
         public string RepositoryUrl { get; set; }
-        public bool ShouldRewriteNuspec { get; set; }
         public bool IsNuspecRewritten { get; set; }
         public bool IsUploaded { get; set; }
 
