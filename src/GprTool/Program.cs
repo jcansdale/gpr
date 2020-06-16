@@ -712,7 +712,11 @@ namespace GprTool
         static long SetupCancelKeyPress = 1;
 
         protected static string AssemblyProduct => Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyProductAttribute>()?.Product;
+        #if !IS_RUNNING_TESTS
         protected static string AssemblyInformationalVersion => ThisAssembly.AssemblyInformationalVersion;
+        #else
+        protected static string AssemblyInformationalVersion => "0.0.0";
+        #endif
 
         [SuppressMessage("ReSharper", "UnusedMember.Global")]
         protected async Task<int> OnExecuteAsync(CommandLineApplication app, CancellationToken cancellationToken)

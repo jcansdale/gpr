@@ -1,4 +1,4 @@
-﻿**/.vs/
+**/.vs/
 **/bin/
 **/obj/
 *.user
@@ -7,3 +7,4 @@ _NCrunch_*/
 *.ncrunchsolution
 publish/
 src/GprTool/nupkg/
+**/TestResults/TestResults.xml

@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace GprTool.Tests
 {
     [TestFixture]
-    class IoExtensionsTests
+    public class IoExtensionsTests
     {
         [TestCase("./nupkg", "*.*", 2)]
         [TestCase("./nupkg/**/*.*", "**/*.*", 2)]
