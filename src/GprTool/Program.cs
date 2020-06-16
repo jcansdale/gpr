@@ -5,6 +5,7 @@ using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Threading;
@@ -34,6 +35,22 @@ namespace GprTool
     {
         public static async Task<int> Main(string[] args)
         {
+            var gprWaitDebugger = Environment.GetEnvironmentVariable("GPR_WAIT_DEBUGGER")?.Trim();
+            if (string.Equals("1", gprWaitDebugger) ||
+                string.Equals("true", gprWaitDebugger, StringComparison.OrdinalIgnoreCase))
+            {
+                var processId = Process.GetCurrentProcess().Id;
+                while (!Debugger.IsAttached)
+                {
+                    Console.WriteLine($"Waiting for debugger to attach. Process id: {processId}.");
+                    Thread.Sleep(1000);
+                }
+
+                Console.WriteLine("Debugger is attached.");
+
+                Debugger.Break();
+            }
+
             try
             {
                 return await CommandLineApplication.ExecuteAsync<Program>(args);
