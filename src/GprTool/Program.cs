@@ -32,7 +32,7 @@ namespace GprTool
     )]
     public class Program : GprCommandBase
     {
-        public async static Task Main(string[] args)
+        public static async Task Main(string[] args)
         {
             try
             {
@@ -324,7 +324,7 @@ namespace GprTool
     [Command(Description = "Publish a package")]
     public class PushCommand : GprCommandBase
     {
-        static IAsyncPolicy<IRestResponse> BuildRetryAsyncPolicy(int retryNumber, int retrySleepSeconds, int timeoutSeconds)
+        static IAsyncPolicy<IRestResponse> BuildRetryAsyncPolicy(int retryNumber, int retrySleepSeconds, int timeoutSeconds, CancellationToken cancellationToken)
         {
             if (retryNumber <= 0)
             {
@@ -333,7 +333,8 @@ namespace GprTool
 
             var retryPolicy = Policy
                 // http://restsharp.org/usage/exceptions.html
-                .HandleResult<IRestResponse>(x => x.StatusCode != HttpStatusCode.Unauthorized
+                .HandleResult<IRestResponse>(x => !cancellationToken.IsCancellationRequested 
+                                                  && x.StatusCode != HttpStatusCode.Unauthorized
                                                   && x.StatusCode != HttpStatusCode.Conflict 
                                                   && x.StatusCode != HttpStatusCode.OK)
                 .WaitAndRetryAsync(retryNumber, retryAttempt => TimeSpan.FromSeconds(retrySleepSeconds));
@@ -428,7 +429,7 @@ namespace GprTool
             // Retry X times ->
             // Sleep for X seconds ->
             // Timeout if the request takes longer than X seconds.
-            var retryPolicy = BuildRetryAsyncPolicy(Math.Max(0, Retries), 10, 300);
+            var retryPolicy = BuildRetryAsyncPolicy(Math.Max(0, Retries), 10, 300, CancellationToken);
 
             var uploadPackageTasks = packageFiles.Select(packageFile =>
             {
@@ -460,7 +461,7 @@ namespace GprTool
 
                     Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: Uploading package.");
                     
-                    var response = await retryPolicy.ExecuteAsync(() => client.ExecuteAsync(request));
+                    var response = await retryPolicy.ExecuteAsync(() => client.ExecuteAsync(request, CancellationToken));
 
                     if (response.StatusCode == HttpStatusCode.OK)
                     {
@@ -657,10 +658,19 @@ namespace GprTool
     [HelpOption("--help")]
     public abstract class GprCommandBase
     {
+        readonly CancellationTokenSource _cancellationTokenSource;
+
         protected string AssemblyProduct => Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyProductAttribute>()?.Product;
         protected string AssemblyInformationalVersion => ThisAssembly.AssemblyInformationalVersion;
+        protected CancellationToken CancellationToken => _cancellationTokenSource.Token;
         
         protected abstract Task OnExecute(CommandLineApplication app);
+
+        protected GprCommandBase()
+        {
+            _cancellationTokenSource = new CancellationTokenSource();
+            Console.CancelKeyPress += (sender, args) => _cancellationTokenSource.Cancel();
+        }
 
         protected RestClient WithRestClient(string baseUrl, Action<RestClient> builderAction = null)
         { 
