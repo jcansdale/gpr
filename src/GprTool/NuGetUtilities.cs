@@ -161,14 +161,14 @@ namespace GprTool
 
             using var tmpDirectory = new DisposableDirectory(packageFileRewriteWorkingDirectory);
 
-            ZipFile.ExtractToDirectory(packageFile.FilenameAbsolutePath, tmpDirectory.WorkingDirectory);
+            ZipFile.ExtractToDirectory(packageFile.FilenameAbsolutePath, tmpDirectory);
 
-            var nuspecDstFilename = Path.Combine(tmpDirectory.WorkingDirectory, $"{packageId}.nuspec");
+            var nuspecDstFilename = Path.Combine(tmpDirectory, $"{packageId}.nuspec");
             File.WriteAllBytes(nuspecDstFilename, nuspecMemoryStream.ToArray());
 
             using var outputStream = new MemoryStream();
             
-            var packageBuilder = new PackageBuilder(nuspecMemoryStream, tmpDirectory.WorkingDirectory,
+            var packageBuilder = new PackageBuilder(nuspecMemoryStream, tmpDirectory,
                 propertyProvider => throw new NotImplementedException());
             packageBuilder.Save(outputStream);
 
@@ -279,6 +279,8 @@ namespace GprTool
     {
         public string WorkingDirectory { get; }
         
+        public static implicit operator string (DisposableDirectory directory) => directory.WorkingDirectory;
+
         public DisposableDirectory(string workingDirectory)
         {
             WorkingDirectory = workingDirectory;
