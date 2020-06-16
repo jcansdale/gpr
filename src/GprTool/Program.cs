@@ -384,7 +384,8 @@ namespace GprTool
             CancellationToken cancellationToken)
         {
             var packageFiles = new List<PackageFile>();
-            var glob = Glob.Parse(PackageFilename);
+            var packageFullPath = Path.GetFullPath(PackageFilename);
+            var glob = Glob.Parse(packageFullPath);
             var isGlobPattern = glob.IsGlobPattern();
             var currentDirectory = Directory.GetCurrentDirectory();
             var isPackageFilenameADirectory = !isGlobPattern && Directory.Exists(PackageFilename);
@@ -416,7 +417,7 @@ namespace GprTool
             }
             else
             {
-                packageFiles.Add(NuGetUtilities.BuildPackageFile(Path.GetFullPath(PackageFilename), RepositoryUrl));
+                packageFiles.Add(NuGetUtilities.BuildPackageFile(packageFullPath, RepositoryUrl));
             }
 
             Console.WriteLine($"Found {packageFiles.Count} package{(packageFiles.Count > 1 ? "s" : string.Empty)}.");
