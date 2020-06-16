@@ -386,6 +386,8 @@ namespace GprTool
             var packageFiles = new List<PackageFile>();
             var glob = Glob.Parse(PackageFilename);
             var isGlobPattern = glob.IsGlobPattern();
+            var currentDirectory = Directory.GetCurrentDirectory();
+            var isPackageFilenameADirectory = !isGlobPattern && Directory.Exists(PackageFilename);
 
             NuGetVersion nuGetVersion = null;
             if (Version != null && !NuGetVersion.TryParse(Version, out nuGetVersion))
@@ -394,22 +396,21 @@ namespace GprTool
                 return 1;
             }
 
-            if (isGlobPattern)
+            if (isGlobPattern || isPackageFilenameADirectory)
             {
-                var baseDirectory = Directory.GetCurrentDirectory();
-                var searchDirectory = glob.BuildBasePathFromGlob(baseDirectory);
-
                 packageFiles.AddRange(Directory
-                    .GetFiles(searchDirectory, "*.*", SearchOption.AllDirectories)
+                    .GetFiles(currentDirectory, "*.*", SearchOption.AllDirectories)
                     .Where(filename =>
                         filename.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase)
                         || filename.EndsWith(".snupkg", StringComparison.OrdinalIgnoreCase))
-                    .Where(filename => glob.IsMatch(filename))
+                    .Where(filename => isPackageFilenameADirectory || glob.IsMatch(filename))
                     .Select(filename => NuGetUtilities.BuildPackageFile(filename, RepositoryUrl)));
 
                 if (!packageFiles.Any())
                 {
-                    Console.WriteLine($"Unable to find any packages in directory {searchDirectory} matching glob pattern: {glob}. Valid filename extensions are .nupkg, .snupkg.");
+                    Console.WriteLine(isPackageFilenameADirectory
+                        ? $"Unable to find any packages in directory {currentDirectory}. Valid filename extensions are .nupkg, .snupkg."
+                        : $"Unable to find any packages in directory {currentDirectory} matching glob pattern: {glob}. Valid filename extensions are .nupkg, .snupkg.");
                     return 1;
                 }
             }
