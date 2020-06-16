@@ -384,11 +384,6 @@ namespace GprTool
             CancellationToken cancellationToken)
         {
             var packageFiles = new List<PackageFile>();
-            var packageFullPath = Path.GetFullPath(PackageFilename);
-            var glob = Glob.Parse(packageFullPath);
-            var isGlobPattern = glob.IsGlobPattern();
-            var currentDirectory = Directory.GetCurrentDirectory();
-            var isPackageFilenameADirectory = !isGlobPattern && Directory.Exists(PackageFilename);
 
             NuGetVersion nuGetVersion = null;
             if (Version != null && !NuGetVersion.TryParse(Version, out nuGetVersion))
@@ -397,27 +392,16 @@ namespace GprTool
                 return 1;
             }
 
-            if (isGlobPattern || isPackageFilenameADirectory)
-            {
-                packageFiles.AddRange(Directory
-                    .GetFiles(currentDirectory, "*.*", SearchOption.AllDirectories)
-                    .Where(filename =>
-                        filename.EndsWith(".nupkg", StringComparison.OrdinalIgnoreCase)
-                        || filename.EndsWith(".snupkg", StringComparison.OrdinalIgnoreCase))
-                    .Where(filename => isPackageFilenameADirectory || glob.IsMatch(filename))
-                    .Select(filename => NuGetUtilities.BuildPackageFile(filename, RepositoryUrl)));
+            var currentDirectory = Directory.GetCurrentDirectory();
+            packageFiles.AddRange(
+                currentDirectory
+                    .GetFilesByGlobPattern(GlobPattern, out var glob)
+                    .Select(x => NuGetUtilities.BuildPackageFile(x, RepositoryUrl)));
 
-                if (!packageFiles.Any())
-                {
-                    Console.WriteLine(isPackageFilenameADirectory
-                        ? $"Unable to find any packages in directory {currentDirectory}. Valid filename extensions are .nupkg, .snupkg."
-                        : $"Unable to find any packages in directory {currentDirectory} matching glob pattern: {glob}. Valid filename extensions are .nupkg, .snupkg.");
-                    return 1;
-                }
-            }
-            else
+            if (!packageFiles.Any())
             {
-                packageFiles.Add(NuGetUtilities.BuildPackageFile(packageFullPath, RepositoryUrl));
+                Console.WriteLine($"Unable to find any packages matching glob pattern: {glob}. Valid filename extensions are .nupkg, .snupkg.");
+                return 1;
             }
 
             Console.WriteLine($"Found {packageFiles.Count} package{(packageFiles.Count > 1 ? "s" : string.Empty)}.");
@@ -555,7 +539,7 @@ namespace GprTool
         }
 
         [Argument(0, Description = "Path to the package file")]
-        public string PackageFilename { get; set; }
+        public string GlobPattern { get; set; }
 
         [Option("-r|--repository", Description = "Override current nupkg repository url. Format: owner/repository. E.g: jcansdale/gpr")]
         public string RepositoryUrl { get; set; }
