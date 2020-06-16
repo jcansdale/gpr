@@ -418,6 +418,8 @@ namespace GprTool
                 packageFiles.Add(NuGetUtilities.BuildPackageFile(Path.GetFullPath(PackageFilename), RepositoryUrl));
             }
 
+            Console.WriteLine($"Found {packageFiles.Count} package{(packageFiles.Count > 1 ? "s" : string.Empty)}.");
+
             foreach (var packageFile in packageFiles)
             {
                 if (!File.Exists(packageFile.FilenameAbsolutePath))
@@ -446,14 +448,10 @@ namespace GprTool
                         "Additional details are available at: https://docs.microsoft.com/en-us/dotnet/core/tools/csproj#repositoryurl");
                     return 1;
                 }
-
-                packageFile.ShouldRewriteNuspec = NuGetUtilities.ShouldRewriteNupkg(packageFile, nuGetVersion);
             }
 
             const string user = "GprTool";
             var token = GetAccessToken();
-
-            Console.WriteLine($"Found {packageFiles.Count} package{(packageFiles.Count > 1 ? "s" : string.Empty)}.");
 
             // Retry X times ->
             // Sleep for X seconds ->
@@ -475,7 +473,10 @@ namespace GprTool
                 cancellationToken.ThrowIfCancellationRequested();
 
                 NuGetVersion packageVersion;
-                if (packageFile.ShouldRewriteNuspec)
+
+                var shouldRewriteNuspec = NuGetUtilities.ShouldRewriteNupkg(packageFile, nuGetVersion);
+
+                if (shouldRewriteNuspec)
                 {
                     NuGetUtilities.RewriteNupkg(packageFile, nuGetVersion);
 
