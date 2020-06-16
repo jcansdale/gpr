@@ -11,30 +11,15 @@ namespace GprTool
 {
     public class PackageFile
     {
-        public string Filename { get; set; }
         public string Owner { get; set; }
         public string RepositoryName { get; set; }
         public string RepositoryUrl { get; set; }
+        public bool ShouldRewriteNuspec { get; set; }
         public bool IsNuspecRewritten { get; set; }
 
-        public string FilenameWithoutGprPrefixAndPath
-        {
-            get
-            {
-                var gprIndex = !IsNuspecRewritten ? -1 : Filename.LastIndexOf("_gpr", StringComparison.OrdinalIgnoreCase);
-                if (gprIndex == -1)
-                {
-                    return Filename;
-                }
-
-                // Support case sensitive filename extensions (e.g. test_gpr.NuPkg -> test.NuPkg)
-
-                var filenameUntilGpr = Filename.Substring(0, gprIndex);
-                var filenameExcludingGpr = Filename.Substring(gprIndex + 4);
-
-                return Path.GetFileName(filenameUntilGpr + filenameExcludingGpr);
-            }
-        }
+        public string Filename { get; set; }
+        public string FilenameAbsolutePath { get; set; }
+        public string FilenameWithoutGprPrefix { get; set; }
     }
 
     public class NuGetUtilities
@@ -86,24 +71,10 @@ namespace GprTool
             return true;
         }
 
-        public static bool TryReadPackageFileMetadata(PackageFile packageFile)
+        public static bool BuildOwnerAndRepositoryFromUrlFromNupkg(PackageFile packageFile)
         {
-            if (!File.Exists(packageFile.Filename))
-            {
-                return false;
-            }
-
-            Manifest manifest;
-
-            try
-            {
-                manifest = ReadNupkgManifest(packageFile.Filename);
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-
+            var manifest = ReadNupkgManifest(packageFile.FilenameAbsolutePath);
+            
             return BuildOwnerAndRepositoryFromUrl(packageFile, manifest.Metadata.Repository?.Url);
         }
 
@@ -111,7 +82,9 @@ namespace GprTool
         {
             var packageFile = new PackageFile
             {
-                Filename = filename
+                Filename = Path.GetFileName(filename),
+                FilenameWithoutGprPrefix = Path.GetFileName(filename),
+                FilenameAbsolutePath = Path.GetFullPath(filename)
             };
 
             BuildOwnerAndRepositoryFromUrl(packageFile, repositoryUrl);
@@ -126,35 +99,29 @@ namespace GprTool
             return Manifest.ReadFrom(packageArchiveReader.GetNuspec(), false);
         }
 
-        public static bool ShouldRewriteNupkg(string nupkgPath, string repositoryUrl, NuGetVersion nuGetVersion = null)
+        public static bool ShouldRewriteNupkg(PackageFile packageFile, NuGetVersion nuGetVersion = null)
         {
-            if (nupkgPath == null) throw new ArgumentNullException(nameof(nupkgPath));
+            if (packageFile == null) throw new ArgumentNullException(nameof(packageFile));
 
-            var manifest = ReadNupkgManifest(nupkgPath);
+            var manifest = ReadNupkgManifest(packageFile.FilenameAbsolutePath);
 
             if (nuGetVersion != null && !nuGetVersion.Equals(manifest.Metadata.Version))
             {
                 return true;
             }
             
-            return !string.Equals(repositoryUrl, manifest.Metadata.Repository?.Url, StringComparison.OrdinalIgnoreCase);
+            return !string.Equals(packageFile.RepositoryUrl, manifest.Metadata.Repository?.Url, StringComparison.OrdinalIgnoreCase);
         }
 
-        public static string RewriteNupkg(string nupkgPath, string repositoryUrl, NuGetVersion nuGetVersion = null)
+        public static void RewriteNupkg(PackageFile packageFile, NuGetVersion nuGetVersion = null)
         {
-            if (nupkgPath == null) throw new ArgumentNullException(nameof(nupkgPath));
-            if (repositoryUrl == null) throw new ArgumentNullException(nameof(repositoryUrl));
-
-            var randomDirectoryId = Guid.NewGuid().ToString("N");
-            var nupkgFilename = Path.GetFileName(nupkgPath);
-            var nupkgFilenameWithoutExt = Path.GetFileNameWithoutExtension(nupkgFilename);
-            var nupkgWorkingDirectoryAbsolutePath = Path.GetDirectoryName(nupkgPath);
-            var workingDirectory = Path.Combine(nupkgWorkingDirectoryAbsolutePath, $"{nupkgFilenameWithoutExt}_{randomDirectoryId}");
-
-            using var tmpDirectory = new DisposableDirectory(workingDirectory);
-            using var packageArchiveReader = new PackageArchiveReader(nupkgPath.ReadSharedToStream(), false);
-            using var nuspecMemoryStream = new MemoryStream();
-
+            if (packageFile == null) throw new ArgumentNullException(nameof(packageFile));
+            
+            var randomId = Guid.NewGuid().ToString("N");
+  
+            using var packageArchiveReader = new PackageArchiveReader(
+                packageFile.FilenameAbsolutePath.ReadSharedToStream(), false);
+            
             var nuspecXDocument = packageArchiveReader.NuspecReader.Xml;
             var packageXElement = nuspecXDocument.Single("package");
             var metadataXElement = packageXElement.Single("metadata");
@@ -174,34 +141,44 @@ namespace GprTool
             if (repositoryXElement == null)
             {
                 repositoryXElement = new XElement("repository");
-                repositoryXElement.SetAttributeValue("url", repositoryUrl);
+                repositoryXElement.SetAttributeValue("url", packageFile.RepositoryUrl);
                 repositoryXElement.SetAttributeValue("type", "git");
                 metadataXElement.Add(repositoryXElement);
             }
             else
             {
-                repositoryXElement.SetAttributeValue("url", repositoryUrl);
+                repositoryXElement.SetAttributeValue("url", packageFile.RepositoryUrl);
                 repositoryXElement.SetAttributeValue("type", "git");
             }
             
+            using var nuspecMemoryStream = new MemoryStream();
             nuspecXDocument.Save(nuspecMemoryStream);
             nuspecMemoryStream.Seek(0, SeekOrigin.Begin);
 
-            ZipFile.ExtractToDirectory(nupkgPath, tmpDirectory.WorkingDirectory, true);
+            var packageFileWorkingDirectoryAbsolutePath = Path.GetDirectoryName(packageFile.FilenameAbsolutePath);
+            var packageFileRewriteWorkingDirectory = Path.Combine(packageFileWorkingDirectoryAbsolutePath,
+                $"{packageId}.{nuGetVersion}_{randomId}");
+
+            using var tmpDirectory = new DisposableDirectory(packageFileRewriteWorkingDirectory);
+
+            ZipFile.ExtractToDirectory(packageFile.FilenameAbsolutePath, tmpDirectory.WorkingDirectory);
 
             var nuspecDstFilename = Path.Combine(tmpDirectory.WorkingDirectory, $"{packageId}.nuspec");
             File.WriteAllBytes(nuspecDstFilename, nuspecMemoryStream.ToArray());
 
             using var outputStream = new MemoryStream();
             
-            var packageBuilder = new PackageBuilder(nuspecMemoryStream, tmpDirectory.WorkingDirectory, propertyProvider => throw new NotImplementedException());
+            var packageBuilder = new PackageBuilder(nuspecMemoryStream, tmpDirectory.WorkingDirectory,
+                propertyProvider => throw new NotImplementedException());
             packageBuilder.Save(outputStream);
 
-            var nupkgDstFilenameAbsolutePath = Path.Combine(nupkgWorkingDirectoryAbsolutePath, $"{packageId}.{nuGetVersion}_gpr.nupkg");
+            packageFile.FilenameAbsolutePath = Path.Combine(packageFileWorkingDirectoryAbsolutePath,
+                $"{packageId}.{nuGetVersion}_{randomId}_gpr.nupkg");
+            packageFile.Filename = Path.GetFileName(packageFile.FilenameAbsolutePath);
+            packageFile.FilenameWithoutGprPrefix = $"{packageId}.{nuGetVersion}.nupkg";
+            packageFile.IsNuspecRewritten = true;
 
-            File.WriteAllBytes(nupkgDstFilenameAbsolutePath, outputStream.ToArray());
-
-            return nupkgDstFilenameAbsolutePath;
+            File.WriteAllBytes(packageFile.FilenameAbsolutePath, outputStream.ToArray());
         }
 
         public static string FindTokenInNuGetConfig(Action<string> warning = null)

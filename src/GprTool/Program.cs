@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Threading;
 using DotNet.Globbing;
 using McMaster.Extensions.CommandLineUtils;
+using NuGet.Packaging;
 using NuGet.Versioning;
 using RestSharp;
 using RestSharp.Authenticators;
@@ -333,9 +334,10 @@ namespace GprTool
 
             var retryPolicy = Policy
                 // http://restsharp.org/usage/exceptions.html
-                .HandleResult<IRestResponse>(x => !cancellationToken.IsCancellationRequested 
+                .HandleResult<IRestResponse>(x => !cancellationToken.IsCancellationRequested
                                                   && x.StatusCode != HttpStatusCode.Unauthorized
-                                                  && x.StatusCode != HttpStatusCode.Conflict 
+                                                  && x.StatusCode != HttpStatusCode.Conflict
+                                                  && x.StatusCode != HttpStatusCode.BadRequest
                                                   && x.StatusCode != HttpStatusCode.OK)
                 .WaitAndRetryAsync(retryNumber, retryAttempt => TimeSpan.FromSeconds(retrySleepSeconds));
 
@@ -351,7 +353,7 @@ namespace GprTool
             var isGlobPattern = glob.IsGlobPattern();
 
             NuGetVersion nuGetVersion = null;
-            if (RepositoryUrl != null && Version != null && !NuGetVersion.TryParse(Version, out nuGetVersion))
+            if (Version != null && !NuGetVersion.TryParse(Version, out nuGetVersion))
             {
                 Console.WriteLine($"Invalid version: {Version}");
                 return;
@@ -383,7 +385,7 @@ namespace GprTool
 
             foreach (var packageFile in packageFiles)
             {
-                if (!File.Exists(packageFile.Filename))
+                if (!File.Exists(packageFile.FilenameAbsolutePath))
                 {
                     Console.WriteLine($"Package file was not found: {packageFile}");
                     return;
@@ -391,7 +393,7 @@ namespace GprTool
 
                 if (RepositoryUrl == null)
                 {
-                    NuGetUtilities.TryReadPackageFileMetadata(packageFile);
+                    NuGetUtilities.BuildOwnerAndRepositoryFromUrlFromNupkg(packageFile);
                 }
                 else
                 {
@@ -404,19 +406,13 @@ namespace GprTool
                 {
                     Console.WriteLine(
                         $"Project is missing a valid <RepositoryUrl /> XML element value: {packageFile.RepositoryUrl}. " +
-                        $"Package filename: {packageFile.Filename} " +
+                        $"Package filename: {packageFile.FilenameAbsolutePath} " +
                         "Please use --repository option to set a valid upstream GitHub repository. " +
                         "Additional details are available at: https://docs.microsoft.com/en-us/dotnet/core/tools/csproj#repositoryurl");
                     return;
                 }
 
-                if (!NuGetUtilities.ShouldRewriteNupkg(packageFile.Filename, packageFile.RepositoryUrl, nuGetVersion))
-                {
-                    continue;
-                }
-
-                packageFile.Filename = NuGetUtilities.RewriteNupkg(packageFile.Filename, packageFile.RepositoryUrl, nuGetVersion);
-                packageFile.IsNuspecRewritten = true;
+                packageFile.ShouldRewriteNuspec = NuGetUtilities.ShouldRewriteNupkg(packageFile, nuGetVersion);
             }
 
             const string user = "GprTool";
@@ -437,51 +433,79 @@ namespace GprTool
                 {
                     try
                     {
-                        await UploadPackageAsync();
+                        await concurrencySemaphore.WaitAsync(CancellationToken);
+
+                        NuGetVersion packageVersion;
+                        if (packageFile.ShouldRewriteNuspec)
+                        {
+                            NuGetUtilities.RewriteNupkg(packageFile, nuGetVersion);
+
+                            var manifest = NuGetUtilities.ReadNupkgManifest(packageFile.FilenameAbsolutePath);
+                            packageVersion = manifest.Metadata.Version;
+                        }
+                        else
+                        {
+                            var manifest = NuGetUtilities.ReadNupkgManifest(packageFile.FilenameAbsolutePath);
+                            packageVersion = manifest.Metadata.Version;
+                        }
+
+                        await using var packageStream = packageFile.FilenameAbsolutePath.ReadSharedToStream();
+
+                        Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: " +
+                                          $"Repository url: {packageFile.RepositoryUrl}. " +
+                                          $"Version: {packageVersion}. " +
+                                          $"Size: {packageStream.Length} bytes. ");
+
+                        
+                        return await retryPolicy.ExecuteAsync(() => UploadPackageAsync(packageStream));
                     }
                     finally
                     {
-                        concurrencySemaphore.Dispose();
+                        concurrencySemaphore.Release();
                     }
                 });
 
-                async Task UploadPackageAsync()
+                async Task<IRestResponse> UploadPackageAsync(MemoryStream packageStream)
                 {
-                    await concurrencySemaphore.WaitAsync();
+                    if (packageStream == null) throw new ArgumentNullException(nameof(packageStream));
 
                     var request = new RestRequest(Method.PUT);
-
-                    await using var packageStream = packageFile.Filename.ReadSharedToStream();
-                    request.AddFile("package", packageStream.ToArray(), packageFile.FilenameWithoutGprPrefixAndPath);
 
                     var client = WithRestClient($"https://nuget.pkg.github.com/{packageFile.Owner}/", x =>
                     {
                         x.Authenticator = new HttpBasicAuthenticator(user, token);
                     });
 
-                    Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: Uploading package.");
+                    packageStream.Seek(0, SeekOrigin.Begin);
+
+                    request.AddFile("package", packageStream.CopyTo, packageFile.FilenameWithoutGprPrefix, packageStream.Length);
+
+                    Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: Uploading package.");
                     
-                    var response = await retryPolicy.ExecuteAsync(() => client.ExecuteAsync(request, CancellationToken));
+                    var response = await client.ExecuteAsync(request, CancellationToken);
 
                     if (response.StatusCode == HttpStatusCode.OK)
                     {
-                        Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {response.Content}");
-                        return;
+                        Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: {response.Content}");
+                        goto done;
                     }
 
                     var nugetWarning = response.Headers.FirstOrDefault(h =>
                         h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase));
                     if (nugetWarning != null)
                     {
-                        Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {nugetWarning.Value}");
-                        return;
+                        Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: {nugetWarning.Value}");
+                        goto done;
                     }
 
-                    Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {response.StatusDescription}");
+                    Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: {response.StatusDescription}");
                     foreach (var header in response.Headers)
                     {
-                        Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefixAndPath}]: {header.Name}: {header.Value}");
+                        Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: {header.Name}: {header.Value}");
                     }
+
+                    done:
+                    return response;
                 }
             });
 

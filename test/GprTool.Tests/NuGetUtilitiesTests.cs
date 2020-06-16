@@ -149,9 +149,14 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
         [TestCase("  https://github.com/jcansdale/gpr ", "jcansdale", "gpr", "https://github.com/jcansdale/gpr", Description = "Whitespace")]
         public void BuildPackageFile(string repositoryUrl, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
         {
-            var packageFile = NuGetUtilities.BuildPackageFile("test.nupkg", repositoryUrl);
+            var packageFile = NuGetUtilities.BuildPackageFile("c:\\test\\test.nupkg", repositoryUrl);
+            packageFile.IsNuspecRewritten = true;
+
             Assert.That(packageFile, Is.Not.Null);
             Assert.That(packageFile.Filename, Is.EqualTo("test.nupkg"));
+            Assert.That(packageFile.FilenameWithoutGprPrefix, Is.EqualTo("test.nupkg"));
+            Assert.That(packageFile.FilenameAbsolutePath, Is.EqualTo("c:\\test\\test.nupkg"));
+
             if (expectedGithubRepositoryUrl == null)
             {
                 Assert.Null(packageFile.Owner);
@@ -159,28 +164,41 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
                 Assert.That(packageFile.RepositoryUrl, Is.Null);
                 return;
             }
+
             Assert.That(packageFile.Owner, Is.EqualTo(expectedOwner));
             Assert.That(packageFile.RepositoryName, Is.EqualTo(expectedRepositoryName));
             Assert.That(packageFile.RepositoryUrl, Is.Not.Null);
             Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
         }
 
-        [TestCase("test.nupkg", "test.nupkg")]
-        [TestCase("test.snupkg", "test.snupkg")]
-        [TestCase("test_gpr.nupkg", "test.nupkg")]
-        [TestCase("test_gpr.snupkg", "test.snupkg")]
-        [TestCase("test_GPR.nupkg", "test.nupkg")]
-        [TestCase("test_GPR.snupkg", "test.snupkg")]
-        [TestCase("test_GPR.nUpkG", "test.nUpkG", Description = "Preserves casing")]
-        [TestCase("test_GPR.SnuPkg", "test.SnuPkg", Description = "Preserves casing")]
-        public void PackageFile_FilenameWithoutGprPrefixAndPath(string filename, string expectedFilename)
+        [TestCase("jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+        [TestCase("jcansdale//gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+        [TestCase("/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+        [TestCase("http://github.com/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+        [TestCase("https://github.com/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+        [TestCase("https://github.com/jcansdale\\gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+        [TestCase("https://github.com/jcansdale///////gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+        [TestCase("  https://github.com/jcansdale/gpr ", "jcansdale", "gpr", "https://github.com/jcansdale/gpr", Description = "Whitespace")]
+        public void BuildOwnerAndRepositoryFromUrlFromNupkg(string repositoryUrl, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
         {
-            var packageFile = new PackageFile
+            using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
             {
-                Filename = filename,
-                IsNuspecRewritten = true
-            };
-            Assert.That(packageFile.FilenameWithoutGprPrefixAndPath, Is.EqualTo(expectedFilename));
+                manifest.Metadata.Repository = new RepositoryMetadata
+                {
+                    Url = repositoryUrl,
+                    Type = "git"
+                };
+            }));
+
+            packageBuilderContext.Build();
+
+            var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, null);
+
+            Assert.True(NuGetUtilities.BuildOwnerAndRepositoryFromUrlFromNupkg(packageFile));
+
+            Assert.That(packageFile.Owner, Is.EqualTo(expectedOwner));
+            Assert.That(packageFile.RepositoryName, Is.EqualTo(expectedRepositoryName));
+            Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
         }
 
         [Test]
@@ -223,10 +241,11 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
 
             packageBuilderContext.Build();
 
+            var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, repositoryUrl);
+
             Assert.That(
-                NuGetUtilities.ShouldRewriteNupkg(
-                    packageBuilderContext.NupkgFilename,
-                    repositoryUrl, NuGetVersion.Parse(updatedVersion)), Is.EqualTo(shouldUpdateVersion));
+                NuGetUtilities.ShouldRewriteNupkg(packageFile,
+                    NuGetVersion.Parse(updatedVersion)), Is.EqualTo(shouldUpdateVersion));
         }
 
         [TestCase("https://github.com/owner/repo.git", "https://github.com/owner/repo.git", false, Description = "Equals")]
@@ -253,10 +272,9 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
 
             packageBuilderContext.Build();
 
-            Assert.That(
-                NuGetUtilities.ShouldRewriteNupkg(
-                    packageBuilderContext.NupkgFilename,
-                    updatedRepositoryUrl), Is.EqualTo(shouldUpdateRepositoryUrl));
+            var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, updatedRepositoryUrl);
+
+            Assert.That(NuGetUtilities.ShouldRewriteNupkg(packageFile), Is.EqualTo(shouldUpdateRepositoryUrl));
         }
 
         [TestCase("randomvalue")]
@@ -276,26 +294,27 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
 
             packageBuilderContext.Build();
 
-            Assert.That(
-                NuGetUtilities.ShouldRewriteNupkg(
-                    packageBuilderContext.NupkgFilename,
-                    currentRepositoryUrl), Is.EqualTo(false));
+            var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, currentRepositoryUrl);
+
+            Assert.That(NuGetUtilities.ShouldRewriteNupkg(packageFile), Is.EqualTo(false));
         }
 
         [TestCase("https://github.com/owner/repo.git", "https://github.com/owner/repo.git")]
         [TestCase("https://github.com/owner/repo", "https://github.com/owner/repo")]
         public void RewriteNuspec(string repositoryUrl, string expectedRepositoryUrl)
         {
-            using var originalPackageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(
+            using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(
                 manifest =>
                 {
                     manifest.Metadata.Repository = null;
                 }));
-            originalPackageBuilderContext.Build();
+            packageBuilderContext.Build();
 
-            var rewrittenNupkgAbsolutePath = NuGetUtilities.RewriteNupkg(originalPackageBuilderContext.NupkgFilename, 
-                repositoryUrl, NuGetVersion.Parse("2.0.0"));
-            using var rewrittenNupkgPackageReader = new PackageArchiveReader(File.OpenRead(rewrittenNupkgAbsolutePath));
+            var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, repositoryUrl);
+
+            NuGetUtilities.RewriteNupkg(packageFile, NuGetVersion.Parse("2.0.0"));
+
+            using var rewrittenNupkgPackageReader = new PackageArchiveReader(File.OpenRead(packageFile.FilenameAbsolutePath));
 
             var rewrittenNupkgPackageIdentity = rewrittenNupkgPackageReader.GetIdentity();
             var rewrittenNupkgRepositoryMetadata = rewrittenNupkgPackageReader.NuspecReader.GetRepositoryMetadata();
@@ -311,7 +330,7 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
         [Test]
         public void RewriteNuspec_Overwrites_Existing_Repository_Url()
         {
-            using var originalPackageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(
+            using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(
                 manifest =>
                 {
                     manifest.Metadata.Repository = new RepositoryMetadata
@@ -320,11 +339,13 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
                         Type = "google"
                     };
                 }));
-            originalPackageBuilderContext.Build();
+            packageBuilderContext.Build();
 
-            var rewrittenNupkgAbsolutePath = NuGetUtilities.RewriteNupkg(originalPackageBuilderContext.NupkgFilename, 
-                "https://github.com/owner/repo", NuGetVersion.Parse("2.0.0"));
-            using var rewrittenNupkgPackageReader = new PackageArchiveReader(File.OpenRead(rewrittenNupkgAbsolutePath));
+            var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename,  "https://github.com/owner/repo");
+
+            NuGetUtilities.RewriteNupkg(packageFile, NuGetVersion.Parse("2.0.0"));
+
+            using var rewrittenNupkgPackageReader = new PackageArchiveReader(File.OpenRead(packageFile.FilenameAbsolutePath));
 
             var rewrittenNupkgPackageIdentity = rewrittenNupkgPackageReader.GetIdentity();
             var rewrittenNupkgRepositoryMetadata = rewrittenNupkgPackageReader.NuspecReader.GetRepositoryMetadata();
