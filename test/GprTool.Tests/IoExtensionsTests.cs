@@ -8,6 +8,14 @@ namespace GprTool.Tests
     [TestFixture]
     class IoExtensionsTests
     {
+        [TestCase("./nupkg", "*.*", 2)]
+        [TestCase("./nupkg/**/*.*", "**/*.*", 2)]
+        [TestCase("./nupkg/**/**", "**/**", 2)]
+        [TestCase("./nupkg/**/*.nupkg", "**/*.nupkg", 1)]
+        [TestCase(".\\nupkg", "*.*", 2)]
+        [TestCase(".\\nupkg\\**\\*.*", "**/*.*", 2)]
+        [TestCase(".\\nupkg\\**\\**", "**/**", 2)]
+        [TestCase(".\\nupkg\\**\\*.nupkg", "**/*.nupkg", 1)]
         [TestCase("nupkg", "*.*", 2)]
         [TestCase("nupkg/**/*.nupkg", "**/*.nupkg", 1)]
         [TestCase("nupkg/**/*.snupkg", "**/*.snupkg", 1)]
@@ -36,6 +44,8 @@ namespace GprTool.Tests
             Assert.That(packages.Count, Is.EqualTo(expectedFilesCount));
         }
 
+        [TestCase("./nupkg", "*.*", 2)]
+        [TestCase(".\\nupkg", "*.*", 2)]
         [TestCase("nupkg", "*.*", 2)]
         [TestCase("nupkg/**/*.nupkg", "**/*.nupkg", 1)]
         [TestCase("nupkg/**/*.snupkg", "**/*.snupkg", 1)]
@@ -88,8 +98,10 @@ namespace GprTool.Tests
             Assert.That(packages[1], Is.EqualTo(snupkgAbsoluteFilename));
         }
 
-        [Test]
-        public void GetFilesByGlobPattern_Is_Relative_Filename()
+        [TestCase("test.nupkg")]
+        [TestCase("./test.nupkg")]
+        [TestCase(".\\test.nupkg")]
+        public void GetFilesByGlobPattern_Is_Relative_Filename(string relativeFilename)
         {
             using var tmpDirectory = new DisposableDirectory(Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString("N")));
 
@@ -99,7 +111,7 @@ namespace GprTool.Tests
             File.WriteAllText(nupkgAbsoluteFilename, string.Empty);
             File.WriteAllText(snupkgAbsoluteFilename, string.Empty);
 
-            var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern("test.nupkg", out var glob).ToList();
+            var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(relativeFilename, out var glob).ToList();
 
             var globPattern = glob.ToString().Substring(tmpDirectory.WorkingDirectory.Length).Replace("\\", "/");
             if (globPattern[0] == '/')
