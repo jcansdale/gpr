@@ -6,3 +6,4 @@
 _NCrunch_*/
 *.ncrunchsolution
 publish/
+src/GprTool/nupkg/
