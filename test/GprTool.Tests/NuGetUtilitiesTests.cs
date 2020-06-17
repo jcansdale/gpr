@@ -182,20 +182,25 @@ namespace GprTool.Tests
                 Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
             }
 
-            [TestCase("http://github.com/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("https://github.com/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("https://github.com/jcansdale\\gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("https://github.com/jcansdale///////gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("  https://github.com/jcansdale/gpr ", "jcansdale", "gpr", "https://github.com/jcansdale/gpr", Description = "Whitespace")]
-            public void BuildOwnerAndRepositoryFromUrlFromNupkg(string repositoryUrl, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
+            [TestCase("http://github.com/jcansdale/gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            [TestCase("https://github.com/jcansdale/gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            [TestCase("https://github.com/jcansdale\\gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            [TestCase("https://github.com/jcansdale///////gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            [TestCase("  https://github.com/jcansdale/gpr ", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr", Description = "Whitespace")]
+            [TestCase("http://github.com/jcansdale/gpr", null, "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            public void BuildOwnerAndRepositoryFromUrlFromNupkg(string repositoryUrl, string repositoryType, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
             {
                 using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
                 {
-                    manifest.Metadata.Repository = new RepositoryMetadata
-                    {                        
-                        Url = repositoryUrl,
-                        Type = "git"
-                    };
+                    if (repositoryUrl is { } && repositoryType is { })
+                    {
+                        // Only create Repository when both Url and Type are specified 
+                        manifest.Metadata.Repository = new RepositoryMetadata
+                        {
+                            Url = repositoryUrl,
+                            Type = repositoryType
+                        };
+                    }
 
                     manifest.Metadata.SetProjectUrl(repositoryUrl);
                 }));
