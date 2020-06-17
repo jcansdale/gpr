@@ -9,7 +9,7 @@ env:
 
 jobs:
 
-  build:
+  build-and-test:
     name: Build
     runs-on: ${{ matrix.os }}
     strategy:
@@ -51,7 +51,7 @@ jobs:
      if: github.repository == 'jcansdale/gpr' && github.ref == 'refs/heads/master'
      runs-on: ubuntu-latest
      name: Publish nuget packages
-     needs: [build]
+     needs: [build-and-test]
      steps:      
       - name: Checkout
         uses: actions/checkout@v2
