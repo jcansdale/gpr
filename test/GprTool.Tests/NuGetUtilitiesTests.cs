@@ -149,13 +149,24 @@ namespace GprTool.Tests
             [TestCase("  https://github.com/jcansdale/gpr ", "jcansdale", "gpr", "https://github.com/jcansdale/gpr", Description = "Whitespace")]
             public void BuildPackageFile(string repositoryUrl, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
             {
-                var packageFile = NuGetUtilities.BuildPackageFile("c:\\test\\test.nupkg", repositoryUrl);
+                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
+                {
+                    manifest.Metadata.Repository = new RepositoryMetadata
+                    {
+                        Url = repositoryUrl,
+                        Type = "git"
+                    };
+                }));
+
+                packageBuilderContext.Build();
+
+                var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, repositoryUrl);
                 packageFile.IsNuspecRewritten = true;
 
                 Assert.That(packageFile, Is.Not.Null);
-                Assert.That(packageFile.Filename, Is.EqualTo("test.nupkg"));
-                Assert.That(packageFile.FilenameWithoutGprPrefix, Is.EqualTo("test.nupkg"));
-                Assert.That(packageFile.FilenameAbsolutePath, Is.EqualTo("c:\\test\\test.nupkg"));
+                Assert.That(packageFile.Filename, Is.EqualTo("test.1.0.0.nupkg"));
+                Assert.That(packageFile.FilenameWithoutGprPrefix, Is.EqualTo("test.1.0.0.nupkg"));
+                Assert.That(packageFile.FilenameAbsolutePath, Is.EqualTo(packageBuilderContext.NupkgFilename));
 
                 if (expectedGithubRepositoryUrl == null)
                 {

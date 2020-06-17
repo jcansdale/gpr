@@ -3,10 +3,21 @@
   <PropertyGroup>
     <IsRunningTests Condition="'$(IsRunningTests)' == ''">false</IsRunningTests>
     <PackageOutputPath>$(MSBuildThisFileDirectory)nupkgs</PackageOutputPath>
+    <OsPlatform Condition="$(OsPlatform) == '' AND '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">Windows</OsPlatform>
+    <OsPlatform Condition="$(OsPlatform) == '' AND '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true'">Unix</OsPlatform>
+    <OsPlatform Condition="$(OsPlatform) == ''">Unknown</OsPlatform>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(IsRunningTests)">
     <DefineConstants>$(DefineConstants);IS_RUNNING_TESTS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(OsPlatform) == 'Windows'">
+    <DefineConstants>$(DefineConstants);PLATFORM_WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(OsPlatform) == 'Unix'">
+    <DefineConstants>$(DefineConstants);PLATFORM_UNIX</DefineConstants>
   </PropertyGroup>
 
 </Project>

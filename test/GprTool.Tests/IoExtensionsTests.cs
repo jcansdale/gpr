@@ -12,10 +12,12 @@ namespace GprTool.Tests
         [TestCase("./nupkg/**/*.*", "**/*.*", 2)]
         [TestCase("./nupkg/**/**", "**/**", 2)]
         [TestCase("./nupkg/**/*.nupkg", "**/*.nupkg", 1)]
+        #if PLATFORM_WINDOWS
         [TestCase(".\\nupkg", "*.*", 2)]
         [TestCase(".\\nupkg\\**\\*.*", "**/*.*", 2)]
         [TestCase(".\\nupkg\\**\\**", "**/**", 2)]
         [TestCase(".\\nupkg\\**\\*.nupkg", "**/*.nupkg", 1)]
+        #endif
         [TestCase("nupkg", "*.*", 2)]
         [TestCase("nupkg/**/*.nupkg", "**/*.nupkg", 1)]
         [TestCase("nupkg/**/*.snupkg", "**/*.snupkg", 1)]
@@ -36,7 +38,7 @@ namespace GprTool.Tests
 
             var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(globPattern, out var glob).ToList();
             var pattern = glob.ToString().Substring(nupkgDirectory.Length).Replace("\\", "/");
-            if (pattern[0] == '/')
+            if (pattern[0] == '/' || pattern[0] == '\\')
             {
                 pattern = pattern.Substring(1);
             }
@@ -45,7 +47,9 @@ namespace GprTool.Tests
         }
 
         [TestCase("./nupkg", "*.*", 2)]
+        #if PLATFORM_WINDOWS
         [TestCase(".\\nupkg", "*.*", 2)]
+        #endif
         [TestCase("nupkg", "*.*", 2)]
         [TestCase("nupkg/**/*.nupkg", "**/*.nupkg", 1)]
         [TestCase("nupkg/**/*.snupkg", "**/*.snupkg", 1)]
@@ -66,7 +70,7 @@ namespace GprTool.Tests
 
             var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(Path.Combine(tmpDirectory, globPattern), out var glob).ToList();
             var pattern = glob.ToString().Substring(nupkgDirectory.Length).Replace("\\", "/");
-            if (pattern[0] == '/')
+            if (pattern[0] == '/' || pattern[0] == '\\')
             {
                 pattern = pattern.Substring(1);
             }
@@ -87,7 +91,7 @@ namespace GprTool.Tests
             var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(".", out var glob).ToList();
             
             var globPattern = glob.ToString().Substring(tmpDirectory.WorkingDirectory.Length).Replace("\\", "/");
-            if (globPattern[0] == '/')
+            if (globPattern[0] == '/' || globPattern[0] == '\\')
             {
                 globPattern = globPattern.Substring(1);
             }
@@ -100,7 +104,9 @@ namespace GprTool.Tests
 
         [TestCase("test.nupkg")]
         [TestCase("./test.nupkg")]
+        #if PLATFORM_WINDOWS
         [TestCase(".\\test.nupkg")]
+        #endif
         public void GetFilesByGlobPattern_Is_Relative_Filename(string relativeFilename)
         {
             using var tmpDirectory = new DisposableDirectory(Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString("N")));
@@ -114,7 +120,7 @@ namespace GprTool.Tests
             var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(relativeFilename, out var glob).ToList();
 
             var globPattern = glob.ToString().Substring(tmpDirectory.WorkingDirectory.Length).Replace("\\", "/");
-            if (globPattern[0] == '/')
+            if (globPattern[0] == '/' || globPattern[0] == '\\')
             {
                 globPattern = globPattern.Substring(1);
             }
@@ -138,7 +144,7 @@ namespace GprTool.Tests
             var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(nupkgAbsoluteFilename, out var glob).ToList();
 
             var globPattern = glob.ToString().Substring(tmpDirectory.WorkingDirectory.Length).Replace("\\", "/");
-            if (globPattern[0] == '/')
+            if (globPattern[0] == '/' || globPattern[0] == '\\')
             {
                 globPattern = globPattern.Substring(1);
             }

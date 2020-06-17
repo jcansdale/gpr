@@ -75,6 +75,9 @@ namespace GprTool
                 && pathStr.Sum(x => x == '/' ? 1 : 0) > 1)
             {
                 pathStr = pathStr.Substring(0, pathStr.Length - 1);
+            } else if (lastAppendedGlobToken is LiteralToken literalToken && literalToken.Value == ".")
+            {
+                return Path.GetFullPath(baseDirectory);
             }
 
             return !Path.IsPathRooted(pathStr) ? Path.GetFullPath(pathStr, baseDirectory) : Path.GetFullPath(pathStr);
