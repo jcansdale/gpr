@@ -182,9 +182,6 @@ namespace GprTool.Tests
                 Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
             }
 
-            [TestCase("jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("jcansdale//gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
             [TestCase("http://github.com/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
             [TestCase("https://github.com/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
             [TestCase("https://github.com/jcansdale\\gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
@@ -195,10 +192,12 @@ namespace GprTool.Tests
                 using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
                 {
                     manifest.Metadata.Repository = new RepositoryMetadata
-                    {
+                    {                        
                         Url = repositoryUrl,
                         Type = "git"
                     };
+
+                    manifest.Metadata.SetProjectUrl(repositoryUrl);
                 }));
 
                 packageBuilderContext.Build();
@@ -248,6 +247,8 @@ namespace GprTool.Tests
                         Url = repositoryUrl,
                         Type = "git"
                     };
+
+                    manifest.Metadata.SetProjectUrl(repositoryUrl);
                 }));
 
                 packageBuilderContext.Build();
@@ -279,6 +280,8 @@ namespace GprTool.Tests
                         Url = currentRepositoryUrl,
                         Type = "git"
                     };
+
+                    manifest.Metadata.SetProjectUrl(currentRepositoryUrl);
                 }));
 
                 packageBuilderContext.Build();
@@ -301,6 +304,8 @@ namespace GprTool.Tests
                         Url = currentRepositoryUrl,
                         Type = repositoryType
                     };
+
+                    manifest.Metadata.SetProjectUrl(currentRepositoryUrl);
                 }));
 
                 packageBuilderContext.Build();
