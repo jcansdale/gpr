@@ -48,7 +48,7 @@ jobs:
           path: ${{ github.workspace }}/nupkgs/**/*
         
   publish:
-     if: github.repository == 'jcansdale/gpr' && github.ref == 'refs/heads/master'
+     if: github.repository == 'jcansdale/gpr'
      runs-on: ubuntu-latest
      name: Publish nuget packages
      needs: [build-and-test]
@@ -68,6 +68,7 @@ jobs:
           tools/gpr push ${{ github.workspace }}/nupkgs -k ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push nuget packages 
+        if: github.ref == 'refs/heads/master'
         shell: pwsh
         run: | 
           $WorkingDirectory = ".\${{ env.GITHUB_WORKSPACE }}"
