@@ -41,7 +41,7 @@ jobs:
           dotnet test $GprToolTestsCsprojPath -c Release --logger:nunit --verbosity normal /p:IsRunningTests=True --results-directory $TestResultsDirectory
           
       - name: Upload nupkg
-        if: github.repository == 'jcansdale/gpr' && github.ref == 'refs/heads/master'
+        if: github.repository == 'jcansdale/gpr'
         uses: actions/upload-artifact@v2
         with:
           name: nupkgs-${{ matrix.os }}
