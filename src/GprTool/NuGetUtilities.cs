@@ -5,6 +5,7 @@ using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
 using NuGet.Packaging;
+using NuGet.Packaging.Core;
 using NuGet.Versioning;
 
 namespace GprTool
@@ -92,9 +93,30 @@ namespace GprTool
 
         public static Manifest ReadNupkgManifest(string nupkgPath)
         {
-            if (nupkgPath == null) throw new ArgumentNullException(nameof(nupkgPath));
-            using var packageArchiveReader = new PackageArchiveReader(nupkgPath.ReadSharedToStream());
-            return Manifest.ReadFrom(packageArchiveReader.GetNuspec(), false);
+            var metadata = new ManifestMetadata();
+
+            using var packageArchiveReader = new PackageArchiveReader(
+                nupkgPath.ReadSharedToStream(), false);
+
+            var nuspecXDocument = packageArchiveReader.NuspecReader.Xml;
+            var packageXElement = nuspecXDocument.Single("package");
+            var metadataXElement = packageXElement.Single("metadata");
+
+            if (metadataXElement.Single("version") is { } versionXElement)
+            {
+                metadata.Version = NuGetVersion.Parse(versionXElement.Value);
+            }
+
+            if (metadataXElement.SingleOrDefault("repository") is { } repositoryXElement)
+            {
+                metadata.Repository = new RepositoryMetadata
+                {
+                    Url = repositoryXElement.GetOptionalAttributeValue("url"),
+                    Type = repositoryXElement.GetOptionalAttributeValue("type")
+                };
+            }
+
+            return new Manifest(metadata);
         }
 
         public static bool ShouldRewriteNupkg(PackageFile packageFile, NuGetVersion nuGetVersion = null)
