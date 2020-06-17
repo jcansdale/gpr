@@ -46,7 +46,7 @@ namespace GprTool.Tests
             var glob = Glob.Parse(path);
             Assert.That(glob.BuildBasePathFromGlob(baseDirectory), Is.EqualTo(expectedBaseDirectory));
         }
-#elif PLATFORM_UNIX
+#elif PLATFORM_UNIX || PLATFORM_MACOS
         [TestCase("/mnt/c/test.nupkg", false)]
         [TestCase("/mnt/c/test", false)]
         [TestCase("packages", false)]

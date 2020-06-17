@@ -5,6 +5,7 @@
     <PackageOutputPath>$(MSBuildThisFileDirectory)nupkgs</PackageOutputPath>
     <OsPlatform Condition="$(OsPlatform) == '' AND '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">Windows</OsPlatform>
     <OsPlatform Condition="$(OsPlatform) == '' AND '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true'">Unix</OsPlatform>
+    <OsPlatform Condition="$(OsPlatform) == '' AND '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">MACOS</OsPlatform>
     <OsPlatform Condition="$(OsPlatform) == ''">Unknown</OsPlatform>
   </PropertyGroup>
 
@@ -18,6 +19,10 @@
 
   <PropertyGroup Condition="$(OsPlatform) == 'Unix'">
     <DefineConstants>$(DefineConstants);PLATFORM_UNIX</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(OsPlatform) == 'MACOS'">
+    <DefineConstants>$(DefineConstants);PLATFORM_MACOS</DefineConstants>
   </PropertyGroup>
 
 </Project>
