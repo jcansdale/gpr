@@ -19,7 +19,6 @@ namespace GprTool
 
         public string Filename { get; set; }
         public string FilenameAbsolutePath { get; set; }
-        public string FilenameWithoutGprPrefix { get; set; }
     }
 
     public class NuGetUtilities
@@ -83,7 +82,6 @@ namespace GprTool
             var packageFile = new PackageFile
             {
                 Filename = Path.GetFileName(filename),
-                FilenameWithoutGprPrefix = Path.GetFileName(filename),
                 FilenameAbsolutePath = Path.GetFullPath(filename)
             };
 
@@ -172,9 +170,8 @@ namespace GprTool
                 propertyProvider => throw new NotImplementedException());
             packageBuilder.Save(outputStream);
 
-            packageFile.FilenameAbsolutePath = $"{packageFile.FilenameAbsolutePath}.zip");
-            packageFile.Filename = Path.GetFileName(packageFile.FilenameAbsolutePath);
-            packageFile.FilenameWithoutGprPrefix = $"{packageId}.{nuGetVersion}.nupkg";
+            packageFile.Filename = $"{packageId}.{nuGetVersion}.nupkg";
+            packageFile.FilenameAbsolutePath = Path.Combine(packageFileWorkingDirectoryAbsolutePath, Path.ChangeExtension(packageFile.Filename, ".zip"));
             packageFile.IsNuspecRewritten = true;
 
             File.WriteAllBytes(packageFile.FilenameAbsolutePath, outputStream.ToArray());

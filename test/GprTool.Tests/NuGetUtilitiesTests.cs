@@ -165,7 +165,7 @@ namespace GprTool.Tests
 
                 Assert.That(packageFile, Is.Not.Null);
                 Assert.That(packageFile.Filename, Is.EqualTo("test.1.0.0.nupkg"));
-                Assert.That(packageFile.FilenameWithoutGprPrefix, Is.EqualTo("test.1.0.0.nupkg"));
+                Assert.That(packageFile.Filename, Is.EqualTo("test.1.0.0.nupkg"));
                 Assert.That(packageFile.FilenameAbsolutePath, Is.EqualTo(packageBuilderContext.NupkgFilename));
 
                 if (expectedGithubRepositoryUrl == null)

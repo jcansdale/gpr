@@ -448,7 +448,7 @@ namespace GprTool
                 (packageFile, packageCancellationToken) => UploadPackageAsync(packageFile, nuGetVersion, token, retryPolicy, packageCancellationToken),
                 (packageFile, exception) =>
                 {
-                    Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: {exception.Message}");
+                    Console.WriteLine($"[{packageFile.Filename}]: {exception.Message}");
                 }, cancellationToken, Math.Max(1, Concurrency));
 
             static async Task UploadPackageAsync(PackageFile packageFile,
@@ -477,7 +477,7 @@ namespace GprTool
 
                 await using var packageStream = packageFile.FilenameAbsolutePath.ReadSharedToStream();
 
-                Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: " +
+                Console.WriteLine($"[{packageFile.Filename}]: " +
                                   $"Repository url: {packageFile.RepositoryUrl}. " +
                                   $"Version: {packageVersion}. " +
                                   $"Size: {packageStream.Length} bytes. ");
@@ -504,9 +504,9 @@ namespace GprTool
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                request.AddFile("package", packageStream.CopyTo, packageFile.FilenameWithoutGprPrefix, packageStream.Length);
+                request.AddFile("package", packageStream.CopyTo, packageFile.Filename, packageStream.Length);
 
-                Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: Uploading package.");
+                Console.WriteLine($"[{packageFile.Filename}]: Uploading package.");
 
                 var response = await client.ExecuteAsync(request, cancellationToken);
 
@@ -514,7 +514,7 @@ namespace GprTool
 
                 if (packageFile.IsUploaded)
                 {
-                    Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: {response.Content}");
+                    Console.WriteLine($"[{packageFile.Filename}]: {response.Content}");
                     return response;
                 }
 
@@ -522,14 +522,14 @@ namespace GprTool
                     h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase));
                 if (nugetWarning != null)
                 {
-                    Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: {nugetWarning.Value}");
+                    Console.WriteLine($"[{packageFile.Filename}]: {nugetWarning.Value}");
                     return response;
                 }
 
-                Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: {response.StatusDescription}");
+                Console.WriteLine($"[{packageFile.Filename}]: {response.StatusDescription}");
                 foreach (var header in response.Headers)
                 {
-                    Console.WriteLine($"[{packageFile.FilenameWithoutGprPrefix}]: {header.Name}: {header.Value}");
+                    Console.WriteLine($"[{packageFile.Filename}]: {header.Name}: {header.Value}");
                 }
 
                 return response;
