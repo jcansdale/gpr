@@ -73,7 +73,8 @@ namespace GprTool
         public static bool BuildOwnerAndRepositoryFromUrlFromNupkg(PackageFile packageFile)
         {
             var manifest = ReadNupkgManifest(packageFile.FilenameAbsolutePath);
-            return BuildOwnerAndRepositoryFromUrl(packageFile, FindRepositoryUrl(manifest));
+            
+            return BuildOwnerAndRepositoryFromUrl(packageFile, manifest.Metadata.Repository?.Url);
         }
 
         public static PackageFile BuildPackageFile(string filename, string repositoryUrl)
@@ -107,16 +108,7 @@ namespace GprTool
                 return true;
             }
             
-            return !string.Equals(packageFile.RepositoryUrl, FindRepositoryUrl(manifest), StringComparison.OrdinalIgnoreCase);
-        }
-
-        static string FindRepositoryUrl(Manifest manifest)
-        {
-            // Metadata.Repository.Url appears to return null if <repository type=... /> hasn't been set.
-            // This happens when a project is built with `dotnet pack` and the RepositoryUrl property.
-            // We need to use Metadata.ProjectUrl instead!
-            
-            return manifest?.Metadata?.ProjectUrl?.ToString();
+            return !string.Equals(packageFile.RepositoryUrl, manifest.Metadata.Repository?.Url, StringComparison.OrdinalIgnoreCase);
         }
 
         public static void RewriteNupkg(PackageFile packageFile, NuGetVersion nuGetVersion = null)
