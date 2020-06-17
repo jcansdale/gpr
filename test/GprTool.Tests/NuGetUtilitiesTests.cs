@@ -188,7 +188,7 @@ namespace GprTool.Tests
             [TestCase("https://github.com/jcansdale///////gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
             [TestCase("  https://github.com/jcansdale/gpr ", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr", Description = "Whitespace")]
             [TestCase("http://github.com/jcansdale/gpr", null, "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            public void BuildOwnerAndRepositoryFromUrlFromNupkg(string repositoryUrl, string repositoryType, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
+            public void BuildOwnerAndRepositoryFromUrlFromNupkg_RepositoryUrl(string repositoryUrl, string repositoryType, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
             {
                 using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
                 {
@@ -201,6 +201,32 @@ namespace GprTool.Tests
                             Type = repositoryType
                         };
                     }
+
+                    manifest.Metadata.SetProjectUrl(repositoryUrl);
+                }));
+
+                packageBuilderContext.Build();
+
+                var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, null);
+
+                Assert.True(NuGetUtilities.BuildOwnerAndRepositoryFromUrlFromNupkg(packageFile));
+
+                Assert.That(packageFile.Owner, Is.EqualTo(expectedOwner));
+                Assert.That(packageFile.RepositoryName, Is.EqualTo(expectedRepositoryName));
+                Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
+            }
+
+            [TestCase("http://github.com/jcansdale/gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            [TestCase("https://github.com/jcansdale/gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            [TestCase("https://github.com/jcansdale\\gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            [TestCase("https://github.com/jcansdale///////gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            [TestCase("  https://github.com/jcansdale/gpr ", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr", Description = "Whitespace")]
+            [TestCase("http://github.com/jcansdale/gpr", null, "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            public void BuildOwnerAndRepositoryFromUrlFromNupkg_ProjectUrl(string repositoryUrl, string repositoryType, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
+            {
+                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
+                {
+                    manifest.Metadata.Repository = null;
 
                     manifest.Metadata.SetProjectUrl(repositoryUrl);
                 }));
@@ -286,6 +312,26 @@ namespace GprTool.Tests
                         Type = "git"
                     };
 
+                    manifest.Metadata.SetProjectUrl(currentRepositoryUrl);
+                }));
+
+                packageBuilderContext.Build();
+
+                var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, updatedRepositoryUrl);
+
+                Assert.That(NuGetUtilities.ShouldRewriteNupkg(packageFile), Is.EqualTo(shouldUpdateRepositoryUrl));
+            }
+
+            [TestCase("https://github.com/owner/repo.git", "https://github.com/owner/repo.git", false, Description = "Equals")]
+            [TestCase("https://github.com/owner/repo", "https://github.com/owner/REPO", false, Description = "Case insensitive")]
+            [TestCase("https://github.com/owner/repo", "https://github.com/owner/repo.git", true, Description = "Url ends with .git")]
+            [TestCase(null, "https://github.com/owner/repo.git", true)]
+            [TestCase("https://google.com", "https://github.com/owner/repo.git", true)]
+            public void ShouldRewriteNupkg_ProjectUrl(string currentRepositoryUrl, string updatedRepositoryUrl, bool shouldUpdateRepositoryUrl)
+            {
+                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
+                {
+                    manifest.Metadata.Repository = null;
                     manifest.Metadata.SetProjectUrl(currentRepositoryUrl);
                 }));
 

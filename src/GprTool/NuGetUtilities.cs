@@ -72,8 +72,14 @@ namespace GprTool
 
         public static bool BuildOwnerAndRepositoryFromUrlFromNupkg(PackageFile packageFile)
         {
-            var manifest = ReadNupkgManifest(packageFile.FilenameAbsolutePath);
-            return BuildOwnerAndRepositoryFromUrl(packageFile, FindRepositoryUrl(manifest));
+            using var packageArchiveReader = new PackageArchiveReader(
+                packageFile.FilenameAbsolutePath.ReadSharedToStream(), false);
+
+            var nuspecXDocument = packageArchiveReader.NuspecReader.Xml;
+            var packageXElement = nuspecXDocument.Single("package");
+            var metadataXElement = packageXElement.Single("metadata");
+
+            return BuildOwnerAndRepositoryFromUrl(packageFile, FindRepositoryUrl(metadataXElement));
         }
 
         public static PackageFile BuildPackageFile(string filename, string repositoryUrl)
@@ -96,27 +102,53 @@ namespace GprTool
             return Manifest.ReadFrom(packageArchiveReader.GetNuspec(), false);
         }
 
-        public static bool ShouldRewriteNupkg(PackageFile packageFile, NuGetVersion nuGetVersion = null)
+        public static bool ShouldRewriteNupkg(PackageFile packageFile, NuGetVersion updatednuGetVersion = null)
         {
             if (packageFile == null) throw new ArgumentNullException(nameof(packageFile));
 
-            var manifest = ReadNupkgManifest(packageFile.FilenameAbsolutePath);
+            using var packageArchiveReader = new PackageArchiveReader(
+                packageFile.FilenameAbsolutePath.ReadSharedToStream(), false);
 
-            if (nuGetVersion != null && !nuGetVersion.Equals(manifest.Metadata.Version))
+            var nuspecXDocument = packageArchiveReader.NuspecReader.Xml;
+            var packageXElement = nuspecXDocument.Single("package");
+            var metadataXElement = packageXElement.Single("metadata");
+
+            NuGetVersion.TryParse(metadataXElement.Single("version")?.Value, out var currentNuGetVersion);
+
+            if (updatednuGetVersion != null && !updatednuGetVersion.Equals(currentNuGetVersion))
             {
                 return true;
             }
-            
-            return !string.Equals(packageFile.RepositoryUrl, FindRepositoryUrl(manifest), StringComparison.OrdinalIgnoreCase);
+
+            return !string.Equals(packageFile.RepositoryUrl, FindRepositoryUrl(metadataXElement), StringComparison.OrdinalIgnoreCase);
         }
 
-        static string FindRepositoryUrl(Manifest manifest)
+        static string FindRepositoryUrl(XElement metadataXElement)
         {
+            if (metadataXElement == null) throw new ArgumentNullException(nameof(metadataXElement));
+
             // Metadata.Repository.Url appears to return null if <repository type=... /> hasn't been set.
             // This happens when a project is built with `dotnet pack` and the RepositoryUrl property.
             // We need to use Metadata.ProjectUrl instead!
-            
-            return manifest.Metadata.Repository?.Url ?? manifest.Metadata.ProjectUrl?.ToString();
+
+            string currentRepositoryUrl = null;
+
+            var repositoryXElement = metadataXElement.SingleOrDefault("repository");
+            if (repositoryXElement != null)
+            {
+                currentRepositoryUrl = repositoryXElement.Attribute("url")?.Value;
+            }
+
+            if (string.IsNullOrWhiteSpace(currentRepositoryUrl))
+            {
+                var projectUrl = metadataXElement.SingleOrDefault("projectUrl");
+                if (projectUrl != null)
+                {
+                    currentRepositoryUrl = projectUrl.Value;
+                }
+            }
+
+            return currentRepositoryUrl;
         }
 
         public static void RewriteNupkg(PackageFile packageFile, NuGetVersion nuGetVersion = null)
