@@ -60,9 +60,10 @@ jobs:
           path: ${{ github.workspace }}/nupkgs
 
       - name: Self publish tool
+        shell: bash
         run: |
           dotnet tool install gpr --tool-path tools
-          tools/gpr push ${{ github.workspace }}/nupkgs -k ${{ secrets.GITHUB_TOKEN }}
+          tools/gpr push ${{ github.workspace }}/nupkgs/*.nupkg -k ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push nuget packages 
         if: github.ref == 'refs/heads/master'
