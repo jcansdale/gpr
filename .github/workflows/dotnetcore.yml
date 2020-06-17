@@ -1,20 +1,89 @@
-name: .NET Core
+name: gpr
+
 on: [push,repository_dispatch]
+
+env:
+  NBGV_VERSION: 3.1.91
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1 
+
 jobs:
-  build:
-    runs-on: ubuntu-latest
+
+  build-and-test:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
     steps:
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: 3.1.100
-    - uses: actions/checkout@v1
-    - uses: aarnott/nbgv@v0.3
-      id: nbgv
-    - name: Build with dotnet
-      run: dotnet pack --configuration Release
-    - name: Self publish tool
-      run: dotnet exec ./src/GprTool/bin/Release/netcoreapp3.0/gpr.dll push ./src/GprTool/nupkg/gpr.${{ steps.nbgv.outputs.SemVer2 }}.nupkg -k ${{ secrets.GITHUB_TOKEN }}
-    - name: Publish to nuget.org
-      if: github.ref == 'refs/heads/master'
-      run: dotnet nuget push ./src/GprTool/nupkg/gpr.${{ steps.nbgv.outputs.SemVer2 }}.nupkg -s nuget.org -k ${{ secrets.NUGET_TOKEN }}
+      
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Setup dotnet using global.json
+        uses: actions/setup-dotnet@v1.5.0
+    
+      - uses: dotnet/nbgv@v0.3.1
+        with:
+          setAllVars: true
+          
+      - name: Build and test
+        shell: pwsh
+        run: |
+          
+          $WorkingDirectory = ".\${{ env.GITHUB_WORKSPACE }}"
+          $GprToolCsprojPath = Join-Path $WorkingDirectory src\GprTool\GprTool.csproj
+          $GprToolTestsCsprojPath = Join-Path $WorkingDirectory test\GprTool.Tests\GprTool.Tests.csproj
+          $TestResultsDirectory = Join-Path $WorkingDirectory TestResults
+          dotnet build $GprToolCsprojPath -c Release /p:GeneratePackageOnBuild=True 
+          dotnet test $GprToolTestsCsprojPath -c Release --logger:nunit --verbosity normal /p:IsRunningTests=True --results-directory $TestResultsDirectory
+          
+      - name: Upload nupkg
+        if: github.repository == 'jcansdale/gpr'
+        uses: actions/upload-artifact@v2
+        with:
+          name: nupkgs-${{ matrix.os }}
+          path: ${{ github.workspace }}/nupkgs/**/*
+        
+  publish:
+     if: github.repository == 'jcansdale/gpr'
+     runs-on: ubuntu-latest
+     name: Publish nuget packages
+     needs: [build-and-test]
+     steps:      
+      - name: Download nupkgs
+        uses: actions/download-artifact@v2
+        with:
+          name: nupkgs-ubuntu-latest
+          path: ${{ github.workspace }}/nupkgs
+
+      - name: Self publish tool
+        shell: bash
+        run: |
+          dotnet tool install gpr --tool-path tools
+          tools/gpr push ${{ github.workspace }}/nupkgs/*.nupkg -k ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push nuget packages 
+        if: github.ref == 'refs/heads/master'
+        shell: pwsh
+        run: | 
+          $WorkingDirectory = ".\${{ env.GITHUB_WORKSPACE }}"
+          $NupkgDirectory = Join-Path $WorkingDirectory nupkgs
+          $Nupkgs = Get-ChildItem $NupkgDirectory -Filter *.nupkg | Select-Object -ExpandProperty FullName
+          
+          $Nupkgs | ForEach-Object -Parallel {
+            dotnet nuget push $_ --source nuget.org --api-key ${{ secrets.NUGET_TOKEN }}   
+          }
+          
+      - name: Create github release tag
+        if: success() && github.ref == 'refs/heads/master'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.BUILD_VERSION }}
+          release_name: Release v${{ env.BUILD_VERSION }}
+          draft: true
+          prerelease: false
