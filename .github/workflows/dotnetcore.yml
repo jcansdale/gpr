@@ -15,6 +15,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
+      fail-fast: false
     steps:
       
       - name: Checkout
@@ -40,6 +41,14 @@ jobs:
           dotnet build $GprToolCsprojPath -c Release /p:GeneratePackageOnBuild=True 
           dotnet test $GprToolTestsCsprojPath -c Release --logger:nunit --verbosity normal /p:IsRunningTests=True --results-directory $TestResultsDirectory
           
+      - name: Self publish tool
+        if: github.repository == 'jcansdale/gpr' && matrix.os == 'ubuntu-latest'
+        shell: pwsh
+        run: |
+          $WorkingDirectory = ".\${{ env.GITHUB_WORKSPACE }}"
+          $GprToolCsprojPath = Join-Path $WorkingDirectory src\GprTool\GprTool.csproj
+          dotnet run --project $GprToolCsprojPath -- push 'nupkgs/*.nupkg' -k ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload nupkg
         if: github.repository == 'jcansdale/gpr'
         uses: actions/upload-artifact@v2
@@ -58,12 +67,6 @@ jobs:
         with:
           name: nupkgs-ubuntu-latest
           path: ${{ github.workspace }}/nupkgs
-
-      - name: Self publish tool
-        shell: bash
-        run: |
-          dotnet tool install gpr --tool-path tools
-          tools/gpr push ${{ github.workspace }}/nupkgs/*.nupkg -k ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push nuget packages 
         if: github.ref == 'refs/heads/master'
