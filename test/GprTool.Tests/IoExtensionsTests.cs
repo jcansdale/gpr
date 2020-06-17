@@ -104,7 +104,8 @@ namespace GprTool.Tests
 
         [TestCase("test.nupkg")]
         [TestCase("./test.nupkg")]
-        #if PLATFORM_WINDOWS
+        [TestCase("test.nupkg")]
+#if PLATFORM_WINDOWS
         [TestCase(".\\test.nupkg")]
         #endif
         public void GetFilesByGlobPattern_Is_Relative_Filename(string relativeFilename)
@@ -130,6 +131,32 @@ namespace GprTool.Tests
             Assert.That(packages[0], Is.EqualTo(nupkgAbsoluteFilename));
         }
 
+        [TestCase("test.nupkg test.snupkg")]
+        [TestCase("./test.nupkg ./test.snupkg")]
+        [TestCase("./test.nupkg              ./test.snupkg", Description = "Whitespace")]
+        #if PLATFORM_WINDOWS
+        [TestCase(".\\test.nupkg .\\test.snupkg")]
+        #endif
+        public void GetFilesByGlobPattern_Is_Multiple_Relative_Filenames(string relativeFilename)
+        {
+            using var tmpDirectory = new DisposableDirectory(Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString("N")));
+
+            var nupkgAbsoluteFilename = Path.Combine(tmpDirectory, "test.nupkg");
+            var snupkgAbsoluteFilename = Path.Combine(tmpDirectory, "test.snupkg");
+            var bogusNupkgAbsoluteFilename = Path.Combine(tmpDirectory, "testbogus.snupkg");
+
+            File.WriteAllText(nupkgAbsoluteFilename, string.Empty);
+            File.WriteAllText(snupkgAbsoluteFilename, string.Empty);
+            File.WriteAllText(bogusNupkgAbsoluteFilename, string.Empty);
+
+            var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(relativeFilename, out var glob).ToList();
+
+            Assert.That(glob.ToString(), Is.EqualTo(tmpDirectory.WorkingDirectory));
+            Assert.That(packages.Count, Is.EqualTo(2));
+            Assert.That(packages[0], Is.EqualTo(nupkgAbsoluteFilename));
+            Assert.That(packages[1], Is.EqualTo(snupkgAbsoluteFilename));
+        }
+
         [Test]
         public void GetFilesByGlobPattern_Is_FullPath_Filename()
         {
@@ -152,6 +179,28 @@ namespace GprTool.Tests
             Assert.That(globPattern, Is.EqualTo("test.nupkg"));
             Assert.That(packages.Count, Is.EqualTo(1));
             Assert.That(packages[0], Is.EqualTo(nupkgAbsoluteFilename));
+        }
+
+        [Test]
+        public void GetFilesByGlobPattern_Is_Multiple_FullPath_Filenames()
+        {
+            using var tmpDirectory = new DisposableDirectory(Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString("N")));
+
+            var nupkgAbsoluteFilename = Path.Combine(tmpDirectory, "test.nupkg");
+            var snupkgAbsoluteFilename = Path.Combine(tmpDirectory, "test.snupkg");
+            var bogusNupkgAbsoluteFilename = Path.Combine(tmpDirectory, "testbogus.snupkg");
+
+            File.WriteAllText(nupkgAbsoluteFilename, string.Empty);
+            File.WriteAllText(snupkgAbsoluteFilename, string.Empty);
+            File.WriteAllText(bogusNupkgAbsoluteFilename, string.Empty);
+
+            var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(nupkgAbsoluteFilename + " " + snupkgAbsoluteFilename, out var glob).ToList();
+
+            Assert.That(glob.ToString(), Is.EqualTo(tmpDirectory.WorkingDirectory));
+
+            Assert.That(packages.Count, Is.EqualTo(2));
+            Assert.That(packages[0], Is.EqualTo(nupkgAbsoluteFilename));
+            Assert.That(packages[1], Is.EqualTo(snupkgAbsoluteFilename));
         }
     }
 }
