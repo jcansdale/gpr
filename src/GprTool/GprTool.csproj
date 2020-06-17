@@ -16,7 +16,6 @@
     <PackageProjectUrl>https://github.com/jcansdale/gpr</PackageProjectUrl>
     <Title>GPR Tool</Title>
     <PackageDescription>A .NET Core tool for working the GitHub Package Registry.</PackageDescription>
-    <PackageOutputPath>./nupkg</PackageOutputPath>
     <AssemblyName>gpr</AssemblyName>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <Copyright>Mutant Design Limited</Copyright>
