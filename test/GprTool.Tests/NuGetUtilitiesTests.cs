@@ -182,23 +182,27 @@ namespace GprTool.Tests
                 Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
             }
 
-            [TestCase("jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("jcansdale//gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("http://github.com/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("https://github.com/jcansdale/gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("https://github.com/jcansdale\\gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("https://github.com/jcansdale///////gpr", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
-            [TestCase("  https://github.com/jcansdale/gpr ", "jcansdale", "gpr", "https://github.com/jcansdale/gpr", Description = "Whitespace")]
-            public void BuildOwnerAndRepositoryFromUrlFromNupkg(string repositoryUrl, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
+            [TestCase("http://github.com/jcansdale/gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            [TestCase("https://github.com/jcansdale/gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            [TestCase("https://github.com/jcansdale\\gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            [TestCase("https://github.com/jcansdale///////gpr", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            [TestCase("  https://github.com/jcansdale/gpr ", "git", "jcansdale", "gpr", "https://github.com/jcansdale/gpr", Description = "Whitespace")]
+            [TestCase("http://github.com/jcansdale/gpr", null, "jcansdale", "gpr", "https://github.com/jcansdale/gpr")]
+            public void BuildOwnerAndRepositoryFromUrlFromNupkg(string repositoryUrl, string repositoryType, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
             {
                 using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
                 {
-                    manifest.Metadata.Repository = new RepositoryMetadata
+                    if (repositoryUrl is { } && repositoryType is { })
                     {
-                        Url = repositoryUrl,
-                        Type = "git"
-                    };
+                        // Only create Repository when both Url and Type are specified 
+                        manifest.Metadata.Repository = new RepositoryMetadata
+                        {
+                            Url = repositoryUrl,
+                            Type = repositoryType
+                        };
+                    }
+
+                    manifest.Metadata.SetProjectUrl(repositoryUrl);
                 }));
 
                 packageBuilderContext.Build();
@@ -248,6 +252,8 @@ namespace GprTool.Tests
                         Url = repositoryUrl,
                         Type = "git"
                     };
+
+                    manifest.Metadata.SetProjectUrl(repositoryUrl);
                 }));
 
                 packageBuilderContext.Build();
@@ -279,6 +285,8 @@ namespace GprTool.Tests
                         Url = currentRepositoryUrl,
                         Type = "git"
                     };
+
+                    manifest.Metadata.SetProjectUrl(currentRepositoryUrl);
                 }));
 
                 packageBuilderContext.Build();
@@ -301,6 +309,8 @@ namespace GprTool.Tests
                         Url = currentRepositoryUrl,
                         Type = repositoryType
                     };
+
+                    manifest.Metadata.SetProjectUrl(currentRepositoryUrl);
                 }));
 
                 packageBuilderContext.Build();
