@@ -53,9 +53,6 @@ jobs:
      name: Publish nuget packages
      needs: [build-and-test]
      steps:      
-      - name: Checkout
-        uses: actions/checkout@v2
-            
       - name: Download nupkgs
         uses: actions/download-artifact@v2
         with:
