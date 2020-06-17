@@ -61,7 +61,12 @@ jobs:
         with:
           name: nupkgs-ubuntu-latest
           path: ${{ github.workspace }}/nupkgs
-          
+
+      - name: Self publish tool
+        run: |
+          dotnet tool install gpr --tool-path tools
+          tools/gpr push ${{ github.workspace }}/nupkgs -k ${{ secrets.GITHUB_TOKEN }}
+
       - name: Push nuget packages 
         shell: pwsh
         run: | 
