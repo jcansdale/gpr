@@ -98,8 +98,8 @@ namespace GprTool.Tests
 
             Assert.That(globPattern, Is.EqualTo(globPattern));
             Assert.That(packages.Count, Is.EqualTo(2));
-            Assert.That(packages[0], Is.EqualTo(nupkgAbsoluteFilename));
-            Assert.That(packages[1], Is.EqualTo(snupkgAbsoluteFilename));
+            Assert.That(packages, Does.Contain(nupkgAbsoluteFilename));
+            Assert.That(packages, Does.Contain(snupkgAbsoluteFilename));
         }
 
         [TestCase("test.nupkg")]
@@ -128,7 +128,7 @@ namespace GprTool.Tests
 
             Assert.That(globPattern, Is.EqualTo("test.nupkg"));
             Assert.That(packages.Count, Is.EqualTo(1));
-            Assert.That(packages[0], Is.EqualTo(nupkgAbsoluteFilename));
+            Assert.That(packages, Does.Contain(nupkgAbsoluteFilename));
         }
 
         [TestCase("test.nupkg test.snupkg")]
@@ -153,8 +153,8 @@ namespace GprTool.Tests
 
             Assert.That(glob.ToString(), Is.EqualTo(tmpDirectory.WorkingDirectory));
             Assert.That(packages.Count, Is.EqualTo(2));
-            Assert.That(packages[0], Is.EqualTo(nupkgAbsoluteFilename));
-            Assert.That(packages[1], Is.EqualTo(snupkgAbsoluteFilename));
+            Assert.That(packages, Does.Contain(nupkgAbsoluteFilename));
+            Assert.That(packages, Does.Contain(snupkgAbsoluteFilename));
         }
 
         [Test]
@@ -178,7 +178,7 @@ namespace GprTool.Tests
 
             Assert.That(globPattern, Is.EqualTo("test.nupkg"));
             Assert.That(packages.Count, Is.EqualTo(1));
-            Assert.That(packages[0], Is.EqualTo(nupkgAbsoluteFilename));
+            Assert.That(packages, Does.Contain(nupkgAbsoluteFilename));
         }
 
         [Test]
@@ -199,8 +199,8 @@ namespace GprTool.Tests
             Assert.That(glob.ToString(), Is.EqualTo(tmpDirectory.WorkingDirectory));
 
             Assert.That(packages.Count, Is.EqualTo(2));
-            Assert.That(packages[0], Is.EqualTo(nupkgAbsoluteFilename));
-            Assert.That(packages[1], Is.EqualTo(snupkgAbsoluteFilename));
+            Assert.That(packages, Does.Contain(nupkgAbsoluteFilename));
+            Assert.That(packages, Does.Contain(snupkgAbsoluteFilename));
         }
     }
 }
