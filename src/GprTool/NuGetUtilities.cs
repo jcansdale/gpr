@@ -172,8 +172,7 @@ namespace GprTool
                 propertyProvider => throw new NotImplementedException());
             packageBuilder.Save(outputStream);
 
-            packageFile.FilenameAbsolutePath = Path.Combine(packageFileWorkingDirectoryAbsolutePath,
-                $"{packageId}.{nuGetVersion}_{randomId}_gpr.nupkg");
+            packageFile.FilenameAbsolutePath = $"{packageFile.FilenameAbsolutePath}.zip");
             packageFile.Filename = Path.GetFileName(packageFile.FilenameAbsolutePath);
             packageFile.FilenameWithoutGprPrefix = $"{packageId}.{nuGetVersion}.nupkg";
             packageFile.IsNuspecRewritten = true;
