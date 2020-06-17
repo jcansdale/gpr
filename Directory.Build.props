@@ -1,9 +1,28 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <ItemGroup>
-    <PackageReference Include="Nerdbank.GitVersioning">
-      <Version>3.0.50</Version>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-  </ItemGroup>
+  <PropertyGroup>
+    <IsRunningTests Condition="'$(IsRunningTests)' == ''">false</IsRunningTests>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)nupkgs</PackageOutputPath>
+    <OsPlatform Condition="$(OsPlatform) == '' AND '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">Windows</OsPlatform>
+    <OsPlatform Condition="$(OsPlatform) == '' AND '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true'">Unix</OsPlatform>
+    <OsPlatform Condition="$(OsPlatform) == '' AND '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">MACOS</OsPlatform>
+    <OsPlatform Condition="$(OsPlatform) == ''">Unknown</OsPlatform>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(IsRunningTests)">
+    <DefineConstants>$(DefineConstants);IS_RUNNING_TESTS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(OsPlatform) == 'Windows'">
+    <DefineConstants>$(DefineConstants);PLATFORM_WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(OsPlatform) == 'Unix'">
+    <DefineConstants>$(DefineConstants);PLATFORM_UNIX</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(OsPlatform) == 'MACOS'">
+    <DefineConstants>$(DefineConstants);PLATFORM_MACOS</DefineConstants>
+  </PropertyGroup>
+
 </Project>
