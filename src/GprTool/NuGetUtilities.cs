@@ -116,7 +116,7 @@ namespace GprTool
             // This happens when a project is built with `dotnet pack` and the RepositoryUrl property.
             // We need to use Metadata.ProjectUrl instead!
             
-            return manifest?.Metadata?.ProjectUrl?.ToString();
+            return manifest.Metadata.Repository?.Url ?? manifest.Metadata.ProjectUrl?.ToString();
         }
 
         public static void RewriteNupkg(PackageFile packageFile, NuGetVersion nuGetVersion = null)
