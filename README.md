@@ -1,5 +1,11 @@
 # gpr
 
+![dependabot](https://api.dependabot.com/badges/status?host=github&repo=jcansdale/gpr)
+
+| Build server | Platforms | Build status |
+|--------------|----------|--------------|
+| Github Actions | ubuntu-latest, windows-latest, macos-latest | master ![gpr](https://github.com/jcansdale/gpr/workflows/gpr/badge.svg?branch=master) |
+
 A .NET Core tool for working with the GitHub Package Registry
 
 ```
