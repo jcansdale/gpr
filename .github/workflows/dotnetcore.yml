@@ -56,7 +56,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: nupkgs-${{ matrix.os }}
-          path: ${{ github.workspace }}/$PackageOutputPath/**/*
+          path: ${{ github.workspace }}/${{ env.PackageOutputPath }}/**/*
         
   publish:
      if: github.repository == 'jcansdale/gpr'
