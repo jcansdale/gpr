@@ -10,6 +10,7 @@ env:
   GprToolCsprojPath: src/GprTool/GprTool.csproj
   GprToolTestsCsprojPath: test/GprTool.Tests/GprTool.Tests.csproj
   TestResultsDirectory: TestResults
+  PackageOutputPath: nupkgs
 
 jobs:
 
@@ -48,14 +49,14 @@ jobs:
         if: github.repository == 'jcansdale/gpr' && matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
-          dotnet run --project $GprToolCsprojPath -- push 'nupkgs/*.nupkg' -k ${{ secrets.GITHUB_TOKEN }}
+          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath -k ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload nupkg
         if: github.repository == 'jcansdale/gpr'
         uses: actions/upload-artifact@v2
         with:
           name: nupkgs-${{ matrix.os }}
-          path: ${{ github.workspace }}/nupkgs/**/*
+          path: ${{ github.workspace }}/$PackageOutputPath/**/*
         
   publish:
      if: github.repository == 'jcansdale/gpr'
