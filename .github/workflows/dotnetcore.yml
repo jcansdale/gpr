@@ -37,12 +37,12 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          dotnet build $GprToolCsprojPath -c Release /p:GeneratePackageOnBuild=True
+          dotnet build $GprToolCsprojPath -c Release -p GeneratePackageOnBuild=True
           
       - name: Test
         shell: bash
         run: |
-          dotnet test $GprToolTestsCsprojPath -c Release --logger:nunit --verbosity normal /p:IsRunningTests=True --results-directory $TestResultsDirectory
+          dotnet test $GprToolTestsCsprojPath -c Release --logger:nunit --verbosity normal -p IsRunningTests=True --results-directory $TestResultsDirectory
           
       - name: Self publish tool
         if: github.repository == 'jcansdale/gpr' && matrix.os == 'ubuntu-latest'
