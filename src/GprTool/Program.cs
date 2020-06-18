@@ -370,6 +370,7 @@ namespace GprTool
             var retryPolicy = Policy
                 // http://restsharp.org/usage/exceptions.html
                 .HandleResult<IRestResponse>(x => FindWarning(x) is null
+                                                  && x.StatusCode != HttpStatusCode.NotFound
                                                   && x.StatusCode != HttpStatusCode.Unauthorized
                                                   && x.StatusCode != HttpStatusCode.Conflict
                                                   && x.StatusCode != HttpStatusCode.BadRequest
