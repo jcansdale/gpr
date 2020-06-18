@@ -72,15 +72,8 @@ jobs:
 
       - name: Push nuget packages 
         if: github.ref == 'refs/heads/master'
-        shell: pwsh
-        run: | 
-          $WorkingDirectory = ".\${{ env.GITHUB_WORKSPACE }}"
-          $NupkgDirectory = Join-Path $WorkingDirectory nupkgs
-          $Nupkgs = Get-ChildItem $NupkgDirectory -Filter *.nupkg | Select-Object -ExpandProperty FullName
-          
-          $Nupkgs | ForEach-Object -Parallel {
-            dotnet nuget push $_ --source nuget.org --api-key ${{ secrets.NUGET_TOKEN }}   
-          }
+        shell: bash
+        run: dotnet nuget push $PackageOutputPath/*.nupkg --source nuget.org --api-key ${{ secrets.NUGET_TOKEN }}
           
       - name: Create github release tag
         if: success() && github.ref == 'refs/heads/master'
