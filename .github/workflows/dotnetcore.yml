@@ -59,7 +59,7 @@ jobs:
           path: ${{ github.workspace }}/${{ env.PackageOutputPath }}/**/*
         
   publish:
-     if: github.repository == 'jcansdale/gpr'
+     if: github.repository == 'jcansdale/gpr' && github.ref == 'refs/heads/master'
      runs-on: ubuntu-latest
      name: Publish nuget packages
      needs: [build-and-test]
@@ -68,7 +68,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: nupkgs-ubuntu-latest
-          path: ${{ github.workspace }}/nupkgs
+          path: ${{ github.workspace }}/${{ env.PackageOutputPath }}
 
       - name: Push nuget packages 
         if: github.ref == 'refs/heads/master'
