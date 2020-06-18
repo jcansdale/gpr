@@ -6,6 +6,11 @@ env:
   NBGV_VERSION: 3.1.91
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1 
+  
+  GprToolCsprojPath: src/GprTool/GprTool.csproj
+  GprToolTestsCsprojPath: test/GprTool.Tests/GprTool.Tests.csproj
+  TestResultsDirectory: TestResults
+  PackageOutputPath: nupkgs
 
 jobs:
 
@@ -30,34 +35,31 @@ jobs:
         with:
           setAllVars: true
           
-      - name: Build and test
-        shell: pwsh
+      - name: Build
+        shell: bash
         run: |
+          dotnet build $GprToolCsprojPath -c Release -p:GeneratePackageOnBuild=True
           
-          $WorkingDirectory = ".\${{ env.GITHUB_WORKSPACE }}"
-          $GprToolCsprojPath = Join-Path $WorkingDirectory src\GprTool\GprTool.csproj
-          $GprToolTestsCsprojPath = Join-Path $WorkingDirectory test\GprTool.Tests\GprTool.Tests.csproj
-          $TestResultsDirectory = Join-Path $WorkingDirectory TestResults
-          dotnet build $GprToolCsprojPath -c Release /p:GeneratePackageOnBuild=True 
-          dotnet test $GprToolTestsCsprojPath -c Release --logger:nunit --verbosity normal /p:IsRunningTests=True --results-directory $TestResultsDirectory
+      - name: Test
+        shell: bash
+        run: |
+          dotnet test $GprToolTestsCsprojPath -c Release --logger:nunit --verbosity normal -p:IsRunningTests=True --results-directory $TestResultsDirectory
           
       - name: Self publish tool
         if: github.repository == 'jcansdale/gpr' && matrix.os == 'ubuntu-latest'
-        shell: pwsh
+        shell: bash
         run: |
-          $WorkingDirectory = ".\${{ env.GITHUB_WORKSPACE }}"
-          $GprToolCsprojPath = Join-Path $WorkingDirectory src\GprTool\GprTool.csproj
-          dotnet run --project $GprToolCsprojPath -- push 'nupkgs/*.nupkg' -k ${{ secrets.GITHUB_TOKEN }}
+          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath -k ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload nupkg
         if: github.repository == 'jcansdale/gpr'
         uses: actions/upload-artifact@v2
         with:
           name: nupkgs-${{ matrix.os }}
-          path: ${{ github.workspace }}/nupkgs/**/*
+          path: ${{ github.workspace }}/${{ env.PackageOutputPath }}/**/*
         
   publish:
-     if: github.repository == 'jcansdale/gpr'
+     if: github.repository == 'jcansdale/gpr' && github.ref == 'refs/heads/master'
      runs-on: ubuntu-latest
      name: Publish nuget packages
      needs: [build-and-test]
@@ -66,19 +68,12 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: nupkgs-ubuntu-latest
-          path: ${{ github.workspace }}/nupkgs
+          path: ${{ github.workspace }}/${{ env.PackageOutputPath }}
 
       - name: Push nuget packages 
         if: github.ref == 'refs/heads/master'
-        shell: pwsh
-        run: | 
-          $WorkingDirectory = ".\${{ env.GITHUB_WORKSPACE }}"
-          $NupkgDirectory = Join-Path $WorkingDirectory nupkgs
-          $Nupkgs = Get-ChildItem $NupkgDirectory -Filter *.nupkg | Select-Object -ExpandProperty FullName
-          
-          $Nupkgs | ForEach-Object -Parallel {
-            dotnet nuget push $_ --source nuget.org --api-key ${{ secrets.NUGET_TOKEN }}   
-          }
+        shell: bash
+        run: dotnet nuget push $PackageOutputPath/*.nupkg --source nuget.org --api-key ${{ secrets.NUGET_TOKEN }}
           
       - name: Create github release tag
         if: success() && github.ref == 'refs/heads/master'
