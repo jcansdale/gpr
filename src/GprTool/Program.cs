@@ -526,6 +526,13 @@ namespace GprTool
                     return response;
                 }
 
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    Console.WriteLine($"[{packageFile.Filename}]: {response.StatusDescription}");
+                    Console.WriteLine($"[{packageFile.Filename}]: Check that '{packageFile.RepositoryUrl}' exists");
+                    return response;
+                }
+
                 Console.WriteLine($"[{packageFile.Filename}]: {response.StatusDescription}");
                 foreach (var header in response.Headers)
                 {
