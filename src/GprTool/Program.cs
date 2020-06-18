@@ -369,7 +369,8 @@ namespace GprTool
 
             var retryPolicy = Policy
                 // http://restsharp.org/usage/exceptions.html
-                .HandleResult<IRestResponse>(x => x.StatusCode != HttpStatusCode.Unauthorized
+                .HandleResult<IRestResponse>(x => FindWarning(x) is null
+                                                  && x.StatusCode != HttpStatusCode.Unauthorized
                                                   && x.StatusCode != HttpStatusCode.Conflict
                                                   && x.StatusCode != HttpStatusCode.BadRequest
                                                   && x.StatusCode != HttpStatusCode.OK)
@@ -518,11 +519,9 @@ namespace GprTool
                     return response;
                 }
 
-                var nugetWarning = response.Headers.FirstOrDefault(h =>
-                    h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase));
-                if (nugetWarning != null)
+                if (FindWarning(response) is { } warning)
                 {
-                    Console.WriteLine($"[{packageFile.Filename}]: {nugetWarning.Value}");
+                    Console.WriteLine($"[{packageFile.Filename}]: {warning}");
                     return response;
                 }
 
@@ -536,6 +535,12 @@ namespace GprTool
             }
 
             return packageFiles.All(x => x.IsUploaded) ? 0 : 1;
+        }
+
+        static string FindWarning(IRestResponse response)
+        {
+            return response.Headers.FirstOrDefault(h =>
+                h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase))?.Value as string;
         }
 
         [Argument(0, Description = "Path to the package file")]
