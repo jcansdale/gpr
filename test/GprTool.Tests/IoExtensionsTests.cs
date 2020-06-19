@@ -230,5 +230,27 @@ namespace GprTool.Tests
             Assert.That(packages, Does.Contain(nupkgAbsoluteFilename));
             Assert.That(packages, Does.Contain(snupkgAbsoluteFilename));
         }
+
+        [Test]
+        public void GetFilesByGlobPatterns_Is_Multiple_FullPath_Filenames()
+        {
+            using var tmpDirectory = new DisposableDirectory(Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString("N")));
+
+            var nupkgAbsoluteFilename = Path.Combine(tmpDirectory, "test.nupkg");
+            var snupkgAbsoluteFilename = Path.Combine(tmpDirectory, "test.snupkg");
+            var bogusNupkgAbsoluteFilename = Path.Combine(tmpDirectory, "testbogus.snupkg");
+
+            File.WriteAllText(nupkgAbsoluteFilename, string.Empty);
+            File.WriteAllText(snupkgAbsoluteFilename, string.Empty);
+            File.WriteAllText(bogusNupkgAbsoluteFilename, string.Empty);
+
+            var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(new[] { nupkgAbsoluteFilename, snupkgAbsoluteFilename }, out var glob).ToList();
+
+            Assert.That(glob.ToString(), Is.EqualTo($"{nupkgAbsoluteFilename} {snupkgAbsoluteFilename}"));
+
+            Assert.That(packages.Count, Is.EqualTo(2));
+            Assert.That(packages, Does.Contain(nupkgAbsoluteFilename));
+            Assert.That(packages, Does.Contain(snupkgAbsoluteFilename));
+        }
     }
 }
