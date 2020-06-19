@@ -8,6 +8,19 @@ namespace GprTool
 {
     public static class IoExtensions
     {
+        public static IEnumerable<string> GetFilesByGlobPattern(this string baseDirectory, string[] globPatterns, out Glob outGlob)
+        {
+            outGlob = null;
+
+            var files = Enumerable.Empty<string>();
+            foreach (var globPattern in globPatterns)
+            {
+                files = files.Concat(GetFilesByGlobPattern(baseDirectory, globPattern, out outGlob));
+            }
+
+            return files;
+        }
+
         public static IEnumerable<string> GetFilesByGlobPattern(this string baseDirectory, string globPattern, out Glob outGlob)
         {
             var baseDirectoryGlobPattern = Path.GetFullPath(Path.Combine(baseDirectory, globPattern));

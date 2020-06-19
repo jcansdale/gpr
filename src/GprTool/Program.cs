@@ -397,7 +397,7 @@ namespace GprTool
             var currentDirectory = Directory.GetCurrentDirectory();
             packageFiles.AddRange(
                 currentDirectory
-                    .GetFilesByGlobPattern(GlobPattern, out var glob)
+                    .GetFilesByGlobPattern(GlobPatterns, out var glob)
                     .Select(x => NuGetUtilities.BuildPackageFile(x, RepositoryUrl)));
 
             if (!packageFiles.Any())
@@ -552,7 +552,7 @@ namespace GprTool
         }
 
         [Argument(0, Description = "Path to the package file")]
-        public string GlobPattern { get; set; }
+        public string[] GlobPatterns { get; set; }
 
         [Option("-r|--repository", Description = "Override current nupkg repository url. Format: owner/repository. E.g: jcansdale/gpr")]
         public string RepositoryUrl { get; set; }
