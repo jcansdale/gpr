@@ -131,12 +131,40 @@ namespace GprTool.Tests
             Assert.That(packages, Does.Contain(nupkgAbsoluteFilename));
         }
 
+        [TestCase("test.nupkg;test.snupkg")]
+        [TestCase("./test.nupkg;./test.snupkg")]
+        [TestCase("./test.nupkg;              ./test.snupkg", Description = "Whitespace")]
+#if PLATFORM_WINDOWS
+        [TestCase(".\\test.nupkg;.\\test.snupkg")]
+#endif
+        public void GetFilesByGlobPatterns_Is_Multiple_Relative_Filenames(string relativeFilenames)
+        {
+            using var tmpDirectory = new DisposableDirectory(Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString("N")));
+
+            var nupkgAbsoluteFilename = Path.Combine(tmpDirectory, "test.nupkg");
+            var snupkgAbsoluteFilename = Path.Combine(tmpDirectory, "test.snupkg");
+            var bogusNupkgAbsoluteFilename = Path.Combine(tmpDirectory, "testbogus.snupkg");
+
+            File.WriteAllText(nupkgAbsoluteFilename, string.Empty);
+            File.WriteAllText(snupkgAbsoluteFilename, string.Empty);
+            File.WriteAllText(bogusNupkgAbsoluteFilename, string.Empty);
+
+            var globPatterns = relativeFilenames.Split(';');
+            var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(globPatterns, out var globs).ToList();
+
+            Assert.That(globs, Does.Contain(' '));
+            Assert.That(packages.Count, Is.EqualTo(2));
+            Assert.That(packages, Does.Contain(nupkgAbsoluteFilename));
+            Assert.That(packages, Does.Contain(snupkgAbsoluteFilename));
+        }
+
+
         [TestCase("test.nupkg test.snupkg")]
         [TestCase("./test.nupkg ./test.snupkg")]
         [TestCase("./test.nupkg              ./test.snupkg", Description = "Whitespace")]
-        #if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS
         [TestCase(".\\test.nupkg .\\test.snupkg")]
-        #endif
+#endif
         public void GetFilesByGlobPattern_Is_Multiple_Relative_Filenames(string relativeFilename)
         {
             using var tmpDirectory = new DisposableDirectory(Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString("N")));
