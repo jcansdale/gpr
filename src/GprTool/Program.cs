@@ -780,6 +780,11 @@ namespace GprTool
                 return accessToken.Trim();
             }
 
+            if (FindGitHubToken() is { } gitHubToken)
+            {
+                return gitHubToken.Trim();
+            }
+
             if (NuGetUtilities.FindTokenInNuGetConfig(Warning) is { } configToken)
             {
                 return configToken.Trim();
@@ -793,12 +798,16 @@ namespace GprTool
             throw new ApplicationException("Couldn't find personal access token");
         }
 
-        static string FindReadPackagesToken() =>
-            Environment.GetEnvironmentVariable("READ_PACKAGES_TOKEN") is { } token && token != string.Empty ? token.Trim() : null;
+        static string FindGitHubToken() => FindEnvironmentVariableToken("GITHUB_TOKEN");
+
+        static string FindReadPackagesToken() => FindEnvironmentVariableToken("READ_PACKAGES_TOKEN");
+
+        static string FindEnvironmentVariableToken(string name) =>
+            Environment.GetEnvironmentVariable(name) is { } token && token != string.Empty ? token.Trim() : null;
 
         protected void Warning(string line) => Console.WriteLine(line);
 
         [Option("-k|--api-key", Description = "The access token to use")]
-        protected string AccessToken { get; set; }
+        public string AccessToken { get; set; }
     }
 }
