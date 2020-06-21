@@ -786,6 +786,6 @@ namespace GprTool
         protected void Warning(string line) => Console.WriteLine(line);
 
         [Option("-k|--api-key", Description = "The access token to use")]
-        protected string AccessToken { get; set; }
+        public string AccessToken { get; set; }
     }
 }
