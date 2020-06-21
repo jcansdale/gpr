@@ -84,14 +84,14 @@ namespace GprTool
                 return 1;
             }
 
-            var packageCollection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath);
-            if (packageCollection == null)
+            var packageList = await GraphQLUtilities.FindPackageList(connection, PackagesPath);
+            if (packageList == null)
             {
                 Console.WriteLine("Couldn't find packages");
                 return 1;
             }
 
-            var query = packageCollection.Nodes.Select(p =>
+            var query = packageList.Select(p =>
                 new
                 {
                     p.Name,
@@ -162,14 +162,14 @@ namespace GprTool
                 return 1;
             }
 
-            var packageCollection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath);
-            if (packageCollection == null)
+            var packageList = await GraphQLUtilities.FindPackageList(connection, PackagesPath);
+            if (packageList == null)
             {
                 Console.WriteLine("Couldn't find packages");
                 return 1;
             }
 
-            var query = packageCollection.Nodes.Select(p =>
+            var query = packageList.Select(p =>
                 new
                 {
                     p.Repository.Url,
