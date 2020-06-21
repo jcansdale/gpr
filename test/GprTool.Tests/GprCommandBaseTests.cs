@@ -5,6 +5,7 @@ using GprTool;
 using NUnit.Framework;
 using McMaster.Extensions.CommandLineUtils;
 using NSubstitute;
+using System.Security.Cryptography;
 
 public static class GprCommandBaseTests
 {
@@ -25,6 +26,18 @@ public static class GprCommandBaseTests
             var token = target.GetAccessToken();
 
             Assert.That(token, Is.EqualTo(expectToken));
+        }
+
+        [TestCase(null, null, null)]
+        [TestCase(null, null, "")] // READ_PACKAGES_TOKEN might be empty string in Docker container
+        public void NoTokenDefined(string accessToken, string githubToken, string readToken)
+        {
+            var target = Substitute.For<GprCommandBase>();
+            target.AccessToken = accessToken;
+            Environment.SetEnvironmentVariable("GITHUB_TOKEN", githubToken);
+            Environment.SetEnvironmentVariable("READ_PACKAGES_TOKEN", readToken);
+
+            Assert.Throws<ApplicationException>(() => target.GetAccessToken());
         }
     }
 }
