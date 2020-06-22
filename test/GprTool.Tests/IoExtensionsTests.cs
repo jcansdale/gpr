@@ -8,6 +8,33 @@ namespace GprTool.Tests
     [TestFixture]
     public class IoExtensionsTests
     {
+        [TestCase("foo.nupkg", "foo.nupkg", "foo.nupkg")]
+        [TestCase("*.nupkg", "foo.nupkg;bar.nupkg", "foo.nupkg;bar.nupkg")]
+        [TestCase("*.nupkg", "foo bar.nupkg", "foo bar.nupkg")]
+        [TestCase("dir/foo.nupkg", "dir/foo.nupkg", "dir/foo.nupkg")]
+        [TestCase("foo bar/baz.nupkg", "foo bar/baz.nupkg", "foo bar/baz.nupkg")]
+        [TestCase("foo bar/baz.*", "foo bar/baz.nupkg", "foo bar/baz.nupkg")]
+        public void GetFilesByGlobPattern(string globPattern, string files, string expectedFiles)
+        {
+            using var tmpDirectory = new DisposableDirectory(Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString("N")));
+            var paths = files.Split(';').Select(f => Path.Combine(tmpDirectory.WorkingDirectory, f).Replace('/', Path.DirectorySeparatorChar));
+            foreach (var path in paths)
+            {
+                var dir = Path.GetDirectoryName(path);
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(path, string.Empty);
+            }
+
+            var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(globPattern, out var glob).ToList();
+
+            var expectedPaths = expectedFiles.Split(';').Select(f => Path.Combine(tmpDirectory.WorkingDirectory, f).Replace('/', Path.DirectorySeparatorChar));
+            foreach (var expectFile in expectedPaths)
+            {
+                Assert.Contains(expectFile, packages);
+            }
+            Assert.That(packages.Count(), Is.EqualTo(expectedPaths.Count()));
+        }
+
         [TestCase("./nupkg", "*.*", 2)]
         [TestCase("./nupkg/**/*.*", "**/*.*", 2)]
         [TestCase("./nupkg/**/**", "**/**", 2)]
