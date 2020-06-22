@@ -37,18 +37,6 @@ namespace GprTool
             } else if (File.Exists(baseDirectoryGlobPattern))
             {
                 globPattern = Path.GetFullPath(baseDirectoryGlobPattern);
-            } else if (globPattern.Contains(" "))
-            {
-                baseDirectoryGlobPattern = baseDirectory;
-
-                fileNames.AddRange(globPattern
-                    .Split(" ", StringSplitOptions.RemoveEmptyEntries)
-                    .Select(x => Path.IsPathRooted(x)
-                        ? Path.GetFullPath(x)
-                        : Path.GetFullPath(Path.Combine(baseDirectoryGlobPattern, x)))
-                    .Where(x => !Directory.Exists(x)));
-
-                globPattern = string.Empty;
             }
 
             var glob = Path.IsPathRooted(globPattern)
