@@ -25,7 +25,7 @@ namespace GprTool
 
         public static IEnumerable<string> GetFilesByGlobPattern(this string baseDirectory, string globPattern, out Glob outGlob)
         {
-            var baseDirectoryGlobPattern = Path.GetFullPath(Path.Combine(baseDirectory, globPattern));
+            var baseDirectoryGlobPattern = Path.GetFullPath(Path.Combine(baseDirectory, globPattern.Trim()));
             var fileNames = new List<string>();
 
             if (string.Equals(".", globPattern))
