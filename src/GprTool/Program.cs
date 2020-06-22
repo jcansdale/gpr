@@ -369,7 +369,9 @@ namespace GprTool
 
             var retryPolicy = Policy
                 // http://restsharp.org/usage/exceptions.html
-                .HandleResult<IRestResponse>(x => x.StatusCode != HttpStatusCode.Unauthorized
+                .HandleResult<IRestResponse>(x => FindWarning(x) is null
+                                                  && x.StatusCode != HttpStatusCode.NotFound
+                                                  && x.StatusCode != HttpStatusCode.Unauthorized
                                                   && x.StatusCode != HttpStatusCode.Conflict
                                                   && x.StatusCode != HttpStatusCode.BadRequest
                                                   && x.StatusCode != HttpStatusCode.OK)
@@ -518,11 +520,16 @@ namespace GprTool
                     return response;
                 }
 
-                var nugetWarning = response.Headers.FirstOrDefault(h =>
-                    h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase));
-                if (nugetWarning != null)
+                if (FindWarning(response) is { } warning)
                 {
-                    Console.WriteLine($"[{packageFile.Filename}]: {nugetWarning.Value}");
+                    Console.WriteLine($"[{packageFile.Filename}]: {warning}");
+                    return response;
+                }
+
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    Console.WriteLine($"[{packageFile.Filename}]: {response.StatusDescription}");
+                    Console.WriteLine($"[{packageFile.Filename}]: Check that '{packageFile.RepositoryUrl}' exists");
                     return response;
                 }
 
@@ -536,6 +543,12 @@ namespace GprTool
             }
 
             return packageFiles.All(x => x.IsUploaded) ? 0 : 1;
+        }
+
+        static string FindWarning(IRestResponse response)
+        {
+            return response.Headers.FirstOrDefault(h =>
+                h.Name.Equals("X-Nuget-Warning", StringComparison.OrdinalIgnoreCase))?.Value as string;
         }
 
         [Argument(0, Description = "Path to the package file")]
@@ -767,6 +780,11 @@ namespace GprTool
                 return accessToken.Trim();
             }
 
+            if (FindGitHubToken() is { } gitHubToken)
+            {
+                return gitHubToken.Trim();
+            }
+
             if (NuGetUtilities.FindTokenInNuGetConfig(Warning) is { } configToken)
             {
                 return configToken.Trim();
@@ -780,12 +798,16 @@ namespace GprTool
             throw new ApplicationException("Couldn't find personal access token");
         }
 
-        static string FindReadPackagesToken() =>
-            Environment.GetEnvironmentVariable("READ_PACKAGES_TOKEN") is { } token && token != string.Empty ? token.Trim() : null;
+        static string FindGitHubToken() => FindEnvironmentVariableToken("GITHUB_TOKEN");
+
+        static string FindReadPackagesToken() => FindEnvironmentVariableToken("READ_PACKAGES_TOKEN");
+
+        static string FindEnvironmentVariableToken(string name) =>
+            Environment.GetEnvironmentVariable(name) is { } token && token != string.Empty ? token.Trim() : null;
 
         protected void Warning(string line) => Console.WriteLine(line);
 
         [Option("-k|--api-key", Description = "The access token to use")]
-        protected string AccessToken { get; set; }
+        public string AccessToken { get; set; }
     }
 }
