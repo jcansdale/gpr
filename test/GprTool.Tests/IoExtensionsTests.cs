@@ -10,6 +10,7 @@ namespace GprTool.Tests
     {
         [TestCase("foo.nupkg", "foo.nupkg", "foo.nupkg")]
         [TestCase("*.nupkg", "foo.nupkg;bar.nupkg", "foo.nupkg;bar.nupkg")]
+        [TestCase(".", "foo.nupkg;bar.nupkg", "foo.nupkg;bar.nupkg")]
         [TestCase("*.nupkg", "foo bar.nupkg", "foo bar.nupkg")]
         [TestCase("dir/foo.nupkg", "dir/foo.nupkg", "dir/foo.nupkg")]
         [TestCase("foo bar/baz.nupkg", "foo bar/baz.nupkg", "foo bar/baz.nupkg")]

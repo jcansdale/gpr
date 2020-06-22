@@ -28,10 +28,7 @@ namespace GprTool
             var baseDirectoryGlobPattern = Path.GetFullPath(Path.Combine(baseDirectory, globPattern.Trim()));
             var fileNames = new List<string>();
 
-            if (string.Equals(".", globPattern))
-            {
-                globPattern = Path.GetFullPath(Path.Combine(baseDirectory, "*.*"));
-            } else if (Directory.Exists(baseDirectoryGlobPattern))
+            if (Directory.Exists(baseDirectoryGlobPattern))
             {
                 globPattern = Path.GetFullPath(Path.Combine(baseDirectoryGlobPattern, "*.*"));
             } else if (File.Exists(baseDirectoryGlobPattern))
