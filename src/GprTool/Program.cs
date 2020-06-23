@@ -388,7 +388,11 @@ namespace GprTool
         protected override async Task<int> OnExecuteAsyncImpl(CommandLineApplication app,
             CancellationToken cancellationToken)
         {
-            var packageFiles = new List<PackageFile>();
+            if (GlobPatterns is null)
+            {
+                Console.WriteLine("Please include a package path or glob pattern.");
+                return 1;
+            }
 
             NuGetVersion nuGetVersion = null;
             if (Version != null && !NuGetVersion.TryParse(Version, out nuGetVersion))
@@ -397,10 +401,11 @@ namespace GprTool
                 return 1;
             }
 
+            var packageFiles = new List<PackageFile>();
             var currentDirectory = Directory.GetCurrentDirectory();
             packageFiles.AddRange(
                 currentDirectory
-                    .GetFilesByGlobPattern(GlobPatterns, out var glob)
+                    .GetFilesByGlobPatterns(GlobPatterns, out var glob)
                     .Select(x => NuGetUtilities.BuildPackageFile(x, RepositoryUrl)));
 
             if (!packageFiles.Any())

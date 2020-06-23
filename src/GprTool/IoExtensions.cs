@@ -8,8 +8,10 @@ namespace GprTool
 {
     public static class IoExtensions
     {
-        public static IEnumerable<string> GetFilesByGlobPattern(this string baseDirectory, string[] globPatterns, out string outGlobs)
+        public static IEnumerable<string> GetFilesByGlobPatterns(this string baseDirectory, string[] globPatterns, out string outGlobs)
         {
+            globPatterns = globPatterns ?? throw new ArgumentNullException(nameof(globPatterns));
+
             var globList = new List<Glob>();
 
             var files = Enumerable.Empty<string>();
@@ -25,30 +27,17 @@ namespace GprTool
 
         public static IEnumerable<string> GetFilesByGlobPattern(this string baseDirectory, string globPattern, out Glob outGlob)
         {
-            var baseDirectoryGlobPattern = Path.GetFullPath(Path.Combine(baseDirectory, globPattern));
+            globPattern = globPattern ?? throw new ArgumentNullException(nameof(globPattern));
+
+            var baseDirectoryGlobPattern = Path.GetFullPath(Path.Combine(baseDirectory, globPattern.Trim()));
             var fileNames = new List<string>();
 
-            if (string.Equals(".", globPattern))
-            {
-                globPattern = Path.GetFullPath(Path.Combine(baseDirectory, "*.*"));
-            } else if (Directory.Exists(baseDirectoryGlobPattern))
+            if (Directory.Exists(baseDirectoryGlobPattern))
             {
                 globPattern = Path.GetFullPath(Path.Combine(baseDirectoryGlobPattern, "*.*"));
             } else if (File.Exists(baseDirectoryGlobPattern))
             {
                 globPattern = Path.GetFullPath(baseDirectoryGlobPattern);
-            } else if (globPattern.Contains(" "))
-            {
-                baseDirectoryGlobPattern = baseDirectory;
-
-                fileNames.AddRange(globPattern
-                    .Split(" ", StringSplitOptions.RemoveEmptyEntries)
-                    .Select(x => Path.IsPathRooted(x)
-                        ? Path.GetFullPath(x)
-                        : Path.GetFullPath(Path.Combine(baseDirectoryGlobPattern, x)))
-                    .Where(x => !Directory.Exists(x)));
-
-                globPattern = string.Empty;
             }
 
             var glob = Path.IsPathRooted(globPattern)
