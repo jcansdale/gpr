@@ -174,11 +174,9 @@ namespace GprTool
                 {
                     p.Repository.Url,
                     p.Name,
-                    Versions = p.Versions(100, null, null, null, null).Nodes.Select(v =>
+                    Versions = p.Versions(null, null, null, null, null).AllPages().Select(v =>
                     new
                     {
-                        p.Repository.Url,
-                        p.Name,
                         v.Id,
                         v.Version,
                         v.Statistics.DownloadsTotalCount
