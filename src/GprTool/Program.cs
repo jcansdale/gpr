@@ -94,6 +94,8 @@ namespace GprTool
             var query = packageList.Select(p =>
                 new
                 {
+                    // If access token doesn't have `repo` scope, private packages will have a null `Repository` object
+                    IsPrivate = p.Repository != null ? p.Repository.IsPrivate : true,
                     p.Name,
                     p.Statistics.DownloadsTotalCount,
                     Versions = p.Versions(null, null, null, null, null).AllPages().Select(v =>
@@ -107,7 +109,8 @@ namespace GprTool
 
             var packages = await connection.Run(query, cancellationToken: cancellationToken);
 
-            long totalStorage = 0;
+            long publicStorage = 0;
+            long privateStorage = 0;
             foreach (var package in packages)
             {
                 Console.WriteLine($"{package.Name} ({package.DownloadsTotalCount} downloads)");
@@ -117,7 +120,14 @@ namespace GprTool
                     {
                         if (file.Size != null)
                         {
-                            totalStorage += (int)file.Size;
+                            if (package.IsPrivate)
+                            {
+                                privateStorage += (int)file.Size;
+                            }
+                            else
+                            {
+                                publicStorage += (int)file.Size;
+                            }
                         }
                     }
 
@@ -139,7 +149,9 @@ namespace GprTool
                 }
             }
 
-            Console.WriteLine($"Storage used {totalStorage / (1024 * 1024)} MB");
+            Console.WriteLine();
+            Console.WriteLine($"Public storage used {publicStorage / (1024 * 1024)} MB");
+            Console.WriteLine($"Private storage used {privateStorage / (1024 * 1024)} MB");
 
             return 0;
         }
