@@ -37,6 +37,20 @@ namespace GprTool.Tests
             Assert.That(packages.Count(), Is.EqualTo(expectedPaths.Count()));
         }
 
+        [Test]
+        public void GetFilesByGlobPattern_Throws_ArgumentNullException()
+        {
+            var ex = Assert.Throws<ArgumentNullException>(() =>
+                Path.GetTempPath().GetFilesByGlobPattern(null as string, out var glob));
+        }
+
+        [Test]
+        public void GetFilesByGlobPatterns_Throws_ArgumentNullException()
+        {
+            var ex = Assert.Throws<ArgumentNullException>(() =>
+                Path.GetTempPath().GetFilesByGlobPatterns(null as string[], out var glob));
+        }
+
         [TestCase("./nupkg", "*.*", 2)]
         [TestCase("./nupkg/**/*.*", "**/*.*", 2)]
         [TestCase("./nupkg/**/**", "**/**", 2)]
@@ -179,7 +193,7 @@ namespace GprTool.Tests
             File.WriteAllText(bogusNupkgAbsoluteFilename, string.Empty);
 
             var globPatterns = relativeFilenames.Split(';');
-            var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(globPatterns, out var globs).ToList();
+            var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPatterns(globPatterns, out var globs).ToList();
 
             Assert.That(globs, Does.Contain(' '));
             Assert.That(packages.Count, Is.EqualTo(2));
@@ -224,7 +238,7 @@ namespace GprTool.Tests
             File.WriteAllText(snupkgAbsoluteFilename, string.Empty);
             File.WriteAllText(bogusNupkgAbsoluteFilename, string.Empty);
 
-            var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPattern(new[] { nupkgAbsoluteFilename, snupkgAbsoluteFilename }, out var glob).ToList();
+            var packages = tmpDirectory.WorkingDirectory.GetFilesByGlobPatterns(new[] { nupkgAbsoluteFilename, snupkgAbsoluteFilename }, out var glob).ToList();
 
             Assert.That(glob.ToString(), Is.EqualTo($"{nupkgAbsoluteFilename} {snupkgAbsoluteFilename}"));
 

@@ -397,7 +397,7 @@ namespace GprTool
             var currentDirectory = Directory.GetCurrentDirectory();
             packageFiles.AddRange(
                 currentDirectory
-                    .GetFilesByGlobPattern(GlobPatterns, out var glob)
+                    .GetFilesByGlobPatterns(GlobPatterns, out var glob)
                     .Select(x => NuGetUtilities.BuildPackageFile(x, RepositoryUrl)));
 
             if (!packageFiles.Any())
