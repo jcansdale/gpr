@@ -96,7 +96,7 @@ namespace GprTool
                 {
                     p.Name,
                     p.Statistics.DownloadsTotalCount,
-                    Versions = p.Versions(100, null, null, null, null).Nodes.Select(v =>
+                    Versions = p.Versions(null, null, null, null, null).AllPages().Select(v =>
                     new
                     {
                         v.Version,
