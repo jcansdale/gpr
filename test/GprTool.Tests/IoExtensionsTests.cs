@@ -15,6 +15,7 @@ namespace GprTool.Tests
         [TestCase("dir/foo.nupkg", "dir/foo.nupkg", "dir/foo.nupkg")]
         [TestCase("foo bar/baz.nupkg", "foo bar/baz.nupkg", "foo bar/baz.nupkg")]
         [TestCase("foo bar/baz.*", "foo bar/baz.nupkg", "foo bar/baz.nupkg")]
+        [TestCase("test.*", "test.nupkg;test.snupkg;test.zip", "test.nupkg;test.snupkg")]
         public void GetFilesByGlobPattern(string globPattern, string files, string expectedFiles)
         {
             using var tmpDirectory = new DisposableDirectory(Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString("N")));
