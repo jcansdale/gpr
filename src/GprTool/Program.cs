@@ -84,24 +84,24 @@ namespace GprTool
                 return 1;
             }
 
-            var packageCollection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath);
-            if (packageCollection == null)
+            var packageList = await GraphQLUtilities.FindPackageList(connection, PackagesPath);
+            if (packageList == null)
             {
                 Console.WriteLine("Couldn't find packages");
                 return 1;
             }
 
-            var query = packageCollection.Nodes.Select(p =>
+            var query = packageList.Select(p =>
                 new
                 {
                     p.Name,
                     p.Statistics.DownloadsTotalCount,
-                    Versions = p.Versions(100, null, null, null, null).Nodes.Select(v =>
+                    Versions = p.Versions(null, null, null, null, null).AllPages().Select(v =>
                     new
                     {
                         v.Version,
                         v.Statistics.DownloadsTotalCount,
-                        Files = v.Files(40, null, null, null, null).Nodes.Select(f => new { f.Name, f.UpdatedAt, f.Size }).ToList()
+                        Files = v.Files(null, null, null, null, null).AllPages(40).Select(f => new { f.Name, f.UpdatedAt, f.Size }).ToList()
                     }).ToList()
                 }).Compile();
 
@@ -162,23 +162,21 @@ namespace GprTool
                 return 1;
             }
 
-            var packageCollection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath);
-            if (packageCollection == null)
+            var packageList = await GraphQLUtilities.FindPackageList(connection, PackagesPath);
+            if (packageList == null)
             {
                 Console.WriteLine("Couldn't find packages");
                 return 1;
             }
 
-            var query = packageCollection.Nodes.Select(p =>
+            var query = packageList.Select(p =>
                 new
                 {
                     p.Repository.Url,
                     p.Name,
-                    Versions = p.Versions(100, null, null, null, null).Nodes.Select(v =>
+                    Versions = p.Versions(null, null, null, null, null).AllPages().Select(v =>
                     new
                     {
-                        p.Repository.Url,
-                        p.Name,
                         v.Id,
                         v.Version,
                         v.Statistics.DownloadsTotalCount
@@ -293,40 +291,33 @@ namespace GprTool
             IEnumerable<PackageInfo> result;
             if (PackageOwner is { } packageOwner)
             {
-                var packageConnection = new Query().User(packageOwner).Packages(first: 100);
-                result = await TryGetPackages(connection, packageConnection);
-
-                if (result is null)
-                {
-                    packageConnection = new Query().Organization(packageOwner).Packages(first: 100);
-                    result = await TryGetPackages(connection, packageConnection);
-                }
-
-                if (result is null)
+                var packageList = await GraphQLUtilities.FindPackageList(connection, packageOwner);
+                if (packageList is null)
                 {
                     throw new ApplicationException($"Couldn't find a user or org with the login of '{packageOwner}'");
                 }
+
+                result = await GetPackages(connection, packageList);
             }
             else
             {
-                var packageConnection = new Query().Viewer.Packages(first: 100);
-                result = await TryGetPackages(connection, packageConnection);
+                var packageList = new Query().Viewer.Packages().AllPages();
+                result = await GetPackages(connection, packageList);
             }
 
             return result;
         }
 
-        static async Task<IEnumerable<PackageInfo>> TryGetPackages(IConnection connection, PackageConnection packageConnection)
+        static async Task<IEnumerable<PackageInfo>> GetPackages(IConnection connection, IQueryableList<Package> packageList)
         {
-            var query = packageConnection
-                .Nodes
+            var query = packageList
                 .Select(p => new PackageInfo
                 {
                     RepositoryUrl = p.Repository != null ? p.Repository.Url : "[PRIVATE REPOSITORIES]",
                     Name = p.Name,
                     PackageType = p.PackageType,
                     DownloadsTotalCount = p.Statistics.DownloadsTotalCount,
-                    Versions = p.Versions(100, null, null, null, null).Nodes.Select(v => v.Version).ToList()
+                    Versions = p.Versions(null, null, null, null, null).AllPages().Select(v => v.Version).ToList()
                 })
                 .Compile();
 
