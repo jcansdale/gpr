@@ -101,7 +101,7 @@ namespace GprTool
                     {
                         v.Version,
                         v.Statistics.DownloadsTotalCount,
-                        Files = v.Files(40, null, null, null, null).Nodes.Select(f => new { f.Name, f.UpdatedAt, f.Size }).ToList()
+                        Files = v.Files(null, null, null, null, null).AllPages(40).Select(f => new { f.Name, f.UpdatedAt, f.Size }).ToList()
                     }).ToList()
                 }).Compile();
 
