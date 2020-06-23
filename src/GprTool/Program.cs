@@ -317,7 +317,7 @@ namespace GprTool
                     Name = p.Name,
                     PackageType = p.PackageType,
                     DownloadsTotalCount = p.Statistics.DownloadsTotalCount,
-                    Versions = p.Versions(100, null, null, null, null).Nodes.Select(v => v.Version).ToList()
+                    Versions = p.Versions(null, null, null, null, null).AllPages().Select(v => v.Version).ToList()
                 })
                 .Compile();
 
