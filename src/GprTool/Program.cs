@@ -311,53 +311,54 @@ namespace GprTool
                 return 1;
             }
 
-            var packageList = await GraphQLUtilities.FindPackageList(connection, PackageOwner);
-            if (packageList is null)
+            var vars = new Dictionary<string, object>
+            {
+                { "after", null },
+            };
+
+            var packageConnection = await GraphQLUtilities.FindPackageConnection(connection, PackageOwner, 100, Var("after"), vars);
+            if (packageConnection == null)
             {
                 Console.WriteLine("Couldn't find packages");
                 return 1;
             }
 
-            var packages = await GetPackages(connection, packageList);
-
-            var groups = packages.GroupBy(p => p.RepositoryUrl);
-            foreach (var group in groups.OrderBy(g => g.Key))
-            {
-                Console.WriteLine(group.Key);
-                foreach (var package in group)
+            var query = packageConnection
+                .Select(p => new
                 {
-                    Console.WriteLine($"    {package.Name} ({package.PackageType}) [{string.Join(", ", package.Versions)}] ({package.DownloadsTotalCount} downloads)");
+                    p.PageInfo.EndCursor,
+                    p.PageInfo.HasNextPage,
+                    Packages = p.Nodes.Select(p => new PackageInfo
+                    {
+                        RepositoryUrl = p.Repository != null ? p.Repository.Url : "[PRIVATE REPOSITORIES]",
+                        Name = p.Name,
+                        PackageType = p.PackageType,
+                        DownloadsTotalCount = p.Statistics.DownloadsTotalCount,
+                        Versions = p.Versions(null, null, null, null, null).AllPages().Select(v => v.Version).ToList()
+                    }).ToList()
+                }).Compile();
+
+            var hasNextPage = false;
+            do
+            {
+                var packages = await connection.Run(query, vars);
+
+                var groups = packages.Packages.GroupBy(p => p.RepositoryUrl);
+                foreach (var group in groups.OrderBy(g => g.Key))
+                {
+                    Console.WriteLine(group.Key);
+                    foreach (var package in group)
+                    {
+                        Console.WriteLine($"    {package.Name} ({package.PackageType}) [{string.Join(", ", package.Versions)}] ({package.DownloadsTotalCount} downloads)");
+                    }
                 }
+
+                hasNextPage = packages.HasNextPage;
+                vars["after"] = packages.EndCursor;
             }
+            while (hasNextPage);
 
             return 0;
-        }
-
-        static async Task<IEnumerable<PackageInfo>> GetPackages(IConnection connection, IQueryableList<Package> packageList)
-        {
-            var query = packageList
-                .Select(p => new PackageInfo
-                {
-                    RepositoryUrl = p.Repository != null ? p.Repository.Url : "[PRIVATE REPOSITORIES]",
-                    Name = p.Name,
-                    PackageType = p.PackageType,
-                    DownloadsTotalCount = p.Statistics.DownloadsTotalCount,
-                    Versions = p.Versions(null, null, null, null, null).AllPages().Select(v => v.Version).ToList()
-                })
-                .Compile();
-
-            try
-            {
-                return await connection.Run(query);
-            }
-            catch (GraphQLException e) when (e.Message.StartsWith("Could not resolve to a "))
-            {
-                return null;
-            }
-            catch (GraphQLException e)
-            {
-                throw new ApplicationException(e.Message, e);
-            }
         }
 
         class PackageInfo
