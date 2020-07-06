@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Octokit.GraphQL;
 using Octokit.GraphQL.Core;
@@ -14,7 +15,8 @@ namespace GprTool
             return packageConnection?.AllPages();
         }
 
-        static async Task<PackageConnection> FindPackageConnection(IConnection connection, string packagesPath)
+        public static async Task<PackageConnection> FindPackageConnection(IConnection connection, string packagesPath,
+            Arg<int>? first = null, Arg<string>? after = null, Dictionary<string, object> vars = null)
         {
             var split = packagesPath.Split('/');
             var owner = split.Length > 0 ? split[0] : null;
@@ -23,14 +25,15 @@ namespace GprTool
 
             if (repo is string)
             {
-                return new Query().Repository(owner: owner, name: repo).Packages(names: names);
+                return new Query().Repository(owner: owner, name: repo).Packages(first: first, after: after, names: names);
             }
 
             try
             {
-                var query = new Query().User(owner).Packages().Select(p => p.TotalCount).Compile();
-                var total = await connection.Run(query);
-                return new Query().User(owner).Packages();
+                var query = new Query().User(owner).Packages(first: first, after: after).Select(p => p.TotalCount).Compile();
+                var total = await connection.Run(query, vars);
+
+                return new Query().User(owner).Packages(first: first, after: after);
             }
             catch (GraphQLException e) when (e.Message.StartsWith("Could not resolve to a "))
             {
@@ -43,9 +46,9 @@ namespace GprTool
 
             try
             {
-                var query = new Query().Organization(owner).Packages().Select(p => p.TotalCount).Compile();
-                var total = await connection.Run(query);
-                return new Query().Organization(owner).Packages();
+                var query = new Query().Organization(owner).Packages(first: first, after: after).Select(p => p.TotalCount).Compile();
+                var total = await connection.Run(query, vars);
+                return new Query().Organization(owner).Packages(first: first, after: after);
             }
             catch (GraphQLException e) when (e.Message.StartsWith("Could not resolve to a "))
             {

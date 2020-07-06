@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Threading;
-using DotNet.Globbing;
 using McMaster.Extensions.CommandLineUtils;
 using NuGet.Versioning;
 using RestSharp;
@@ -18,6 +17,7 @@ using Octokit.GraphQL;
 using Octokit.GraphQL.Model;
 using Octokit.GraphQL.Core;
 using Polly;
+using static Octokit.GraphQL.Variable;
 
 namespace GprTool
 {
@@ -84,69 +84,91 @@ namespace GprTool
                 return 1;
             }
 
-            var packageList = await GraphQLUtilities.FindPackageList(connection, PackagesPath);
-            if (packageList == null)
+            var vars = new Dictionary<string, object>
+            {
+                { "after", null },
+            };
+
+            var packageConnection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath, 100, Var("after"), vars);
+            if (packageConnection == null)
             {
                 Console.WriteLine("Couldn't find packages");
                 return 1;
             }
 
-            var query = packageList.Select(p =>
-                new
+            var query = packageConnection
+                .Select(p => new
                 {
-                    // If access token doesn't have `repo` scope, private packages will have a null `Repository` object
-                    IsPrivate = p.Repository != null ? p.Repository.IsPrivate : true,
-                    p.Name,
-                    p.Statistics.DownloadsTotalCount,
-                    Versions = p.Versions(null, null, null, null, null).AllPages().Select(v =>
-                    new
+                    p.PageInfo.EndCursor,
+                    p.PageInfo.HasNextPage,
+                    Packages = p.Nodes.Select(p => new
                     {
-                        v.Version,
-                        v.Statistics.DownloadsTotalCount,
-                        Files = v.Files(null, null, null, null, null).AllPages(40).Select(f => new { f.Name, f.UpdatedAt, f.Size }).ToList()
+                        // If access token doesn't have `repo` scope, private packages will have a null `Repository` object
+                        IsPrivate = p.Repository != null ? p.Repository.IsPrivate : true,
+                        p.Name,
+                        p.Statistics.DownloadsTotalCount,
+                        Versions = p.Versions(null, null, null, null, null).AllPages().Select(v =>
+                        new
+                        {
+                            v.Version,
+                            v.Statistics.DownloadsTotalCount,
+                            Files = v.Files(null, null, null, null, null).AllPages(40).Select(f => new { f.Name, f.UpdatedAt, f.Size }).ToList()
+                        }).ToList()
                     }).ToList()
                 }).Compile();
 
-            var packages = await connection.Run(query, cancellationToken: cancellationToken);
-
             long publicStorage = 0;
             long privateStorage = 0;
-            foreach (var package in packages)
+
+            while (true)
             {
-                Console.WriteLine($"{package.Name} ({package.DownloadsTotalCount} downloads)");
-                foreach (var version in package.Versions)
+                var packages = await connection.Run(query, vars, cancellationToken: cancellationToken);
+
+                foreach (var package in packages.Packages)
                 {
-                    foreach (var file in version.Files)
+                    Console.WriteLine($"{package.Name} ({package.DownloadsTotalCount} downloads)");
+                    foreach (var version in package.Versions)
                     {
-                        if (file.Size != null)
+                        foreach (var file in version.Files)
                         {
-                            if (package.IsPrivate)
+                            if (file.Size != null)
                             {
-                                privateStorage += (int)file.Size;
-                            }
-                            else
-                            {
-                                publicStorage += (int)file.Size;
+                                if (package.IsPrivate)
+                                {
+                                    privateStorage += (int)file.Size;
+                                }
+                                else
+                                {
+                                    publicStorage += (int)file.Size;
+                                }
                             }
                         }
-                    }
 
-                    if (version.Files.Count == 1)
-                    {
-                        var file = version.Files[0];
-                        if (file.Name.Contains(version.Version))
+                        if (version.Files.Count == 1)
                         {
-                            Console.WriteLine($"  {file.Name} ({file.UpdatedAt:d}, {version.DownloadsTotalCount} downloads, {file.Size} bytes)");
-                            continue;
+                            var file = version.Files[0];
+                            if (file.Name.Contains(version.Version))
+                            {
+                                Console.WriteLine($"  {file.Name} ({file.UpdatedAt:d}, {version.DownloadsTotalCount} downloads, {file.Size} bytes)");
+                                continue;
+                            }
                         }
-                    }
 
-                    Console.WriteLine($"  {version.Version} ({version.DownloadsTotalCount} downloads)");
-                    foreach (var file in version.Files)
-                    {
-                        Console.WriteLine($"    {file.Name} ({file.UpdatedAt:d}, {file.Size} bytes)");
+                        Console.WriteLine($"  {version.Version} ({version.DownloadsTotalCount} downloads)");
+                        foreach (var file in version.Files)
+                        {
+                            Console.WriteLine($"    {file.Name} ({file.UpdatedAt:d}, {file.Size} bytes)");
+                        }
                     }
                 }
+
+                if(packages.HasNextPage)
+                {
+                    vars["after"] = packages.EndCursor;
+                    continue;
+                }
+
+                break;
             }
 
             Console.WriteLine();
@@ -174,15 +196,23 @@ namespace GprTool
                 return 1;
             }
 
-            var packageList = await GraphQLUtilities.FindPackageList(connection, PackagesPath);
-            if (packageList == null)
+            var vars = new Dictionary<string, object>
+            {
+                { "after", null },
+            };
+
+            var packageConnection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath, 100, Var("after"), vars);
+            if (packageConnection == null)
             {
                 Console.WriteLine("Couldn't find packages");
                 return 1;
             }
 
-            var query = packageList.Select(p =>
-                new
+            var query = packageConnection.Select(p => new
+            {
+                p.PageInfo.EndCursor,
+                p.PageInfo.HasNextPage,
+                Packages = p.Nodes.Select(p => new
                 {
                     p.Repository.Url,
                     p.Name,
@@ -193,52 +223,63 @@ namespace GprTool
                         v.Version,
                         v.Statistics.DownloadsTotalCount
                     }).ToList()
-                }).Compile();
+                }).ToList()
+            }).Compile();
 
-            var packages = (await connection.Run(query, cancellationToken: cancellationToken)).ToList();
             var packagesDeleted = 0;
 
-            if (DockerCleanUp)
+            var hasNextPage = false;
+            do
             {
+                var result = await connection.Run(query, vars, cancellationToken: cancellationToken);
+                var packages = result.Packages.ToList();
+
+                if (DockerCleanUp)
+                {
+                    foreach (var package in packages)
+                    {
+                        if (package.Versions.Count == 1 && package.Versions[0] is var version && version.Version == "docker-base-layer")
+                        {
+                            Console.WriteLine($"Cleaning up '{package.Name}'");
+
+                            var versionId = version.Id;
+                            var success = await DeletePackageVersion(connection, versionId, cancellationToken);
+                            if (success)
+                            {
+                                Console.WriteLine($"  Deleted '{version.Version}'");
+                                packagesDeleted++;
+                            }
+                        }
+                    }
+
+                    Console.WriteLine("Complete");
+                    return 0;
+                }
+
                 foreach (var package in packages)
                 {
-                    if (package.Versions.Count == 1 && package.Versions[0] is var version && version.Version == "docker-base-layer")
+                    Console.WriteLine(package.Name);
+                    foreach (var version in package.Versions)
                     {
-                        Console.WriteLine($"Cleaning up '{package.Name}'");
-
-                        var versionId = version.Id;
-                        var success = await DeletePackageVersion(connection, versionId, cancellationToken);
-                        if (success)
+                        if (Force)
                         {
-                            Console.WriteLine($"  Deleted '{version.Version}'");
+                            Console.WriteLine($"  Deleting '{version.Version}'");
+
+                            var versionId = version.Id;
+                            await DeletePackageVersion(connection, versionId, cancellationToken);
                             packagesDeleted++;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"  {version.Version}");
                         }
                     }
                 }
 
-                Console.WriteLine("Complete");
-                return 0;
+                hasNextPage = result.HasNextPage;
+                vars["after"] = result.EndCursor;
             }
-
-            foreach (var package in packages)
-            {
-                Console.WriteLine(package.Name);
-                foreach (var version in package.Versions)
-                {
-                    if (Force)
-                    {
-                        Console.WriteLine($"  Deleting '{version.Version}'");
-
-                        var versionId = version.Id;
-                        await DeletePackageVersion(connection, versionId, cancellationToken);
-                        packagesDeleted++;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"  {version.Version}");
-                    }
-                }
-            }
+            while (hasNextPage);
 
             if (!Force)
             {
@@ -246,7 +287,7 @@ namespace GprTool
                 Console.WriteLine("To delete these package versions, use the --force option.");
             }
 
-            return packagesDeleted == packages.Count ? 0 : 1;
+            return 0;
         }
 
         async Task<bool> DeletePackageVersion(IConnection connection, ID versionId, CancellationToken cancellationToken)
@@ -283,68 +324,60 @@ namespace GprTool
         {
             var connection = CreateConnection();
 
-            var packages = await GetPackages(connection);
-
-            var groups = packages.GroupBy(p => p.RepositoryUrl);
-            foreach (var group in groups.OrderBy(g => g.Key))
+            if (PackageOwner is null)
             {
-                Console.WriteLine(group.Key);
-                foreach (var package in group)
-                {
-                    Console.WriteLine($"    {package.Name} ({package.PackageType}) [{string.Join(", ", package.Versions)}] ({package.DownloadsTotalCount} downloads)");
-                }
+                Console.WriteLine("Please include a packages path");
+                return 1;
             }
+
+            var vars = new Dictionary<string, object>
+            {
+                { "after", null },
+            };
+
+            var packageConnection = await GraphQLUtilities.FindPackageConnection(connection, PackageOwner, 100, Var("after"), vars);
+            if (packageConnection == null)
+            {
+                Console.WriteLine("Couldn't find packages");
+                return 1;
+            }
+
+            var query = packageConnection
+                .Select(p => new
+                {
+                    p.PageInfo.EndCursor,
+                    p.PageInfo.HasNextPage,
+                    Packages = p.Nodes.Select(p => new PackageInfo
+                    {
+                        RepositoryUrl = p.Repository != null ? p.Repository.Url : "[PRIVATE REPOSITORIES]",
+                        Name = p.Name,
+                        PackageType = p.PackageType,
+                        DownloadsTotalCount = p.Statistics.DownloadsTotalCount,
+                        Versions = p.Versions(null, null, null, null, null).AllPages().Select(v => v.Version).ToList()
+                    }).ToList()
+                }).Compile();
+
+            var hasNextPage = false;
+            do
+            {
+                var packages = await connection.Run(query, vars);
+
+                var groups = packages.Packages.GroupBy(p => p.RepositoryUrl);
+                foreach (var group in groups.OrderBy(g => g.Key))
+                {
+                    Console.WriteLine(group.Key);
+                    foreach (var package in group)
+                    {
+                        Console.WriteLine($"    {package.Name} ({package.PackageType}) [{string.Join(", ", package.Versions)}] ({package.DownloadsTotalCount} downloads)");
+                    }
+                }
+
+                hasNextPage = packages.HasNextPage;
+                vars["after"] = packages.EndCursor;
+            }
+            while (hasNextPage);
 
             return 0;
-        }
-
-        async Task<IEnumerable<PackageInfo>> GetPackages(IConnection connection)
-        {
-            IEnumerable<PackageInfo> result;
-            if (PackageOwner is { } packageOwner)
-            {
-                var packageList = await GraphQLUtilities.FindPackageList(connection, packageOwner);
-                if (packageList is null)
-                {
-                    throw new ApplicationException($"Couldn't find a user or org with the login of '{packageOwner}'");
-                }
-
-                result = await GetPackages(connection, packageList);
-            }
-            else
-            {
-                var packageList = new Query().Viewer.Packages().AllPages();
-                result = await GetPackages(connection, packageList);
-            }
-
-            return result;
-        }
-
-        static async Task<IEnumerable<PackageInfo>> GetPackages(IConnection connection, IQueryableList<Package> packageList)
-        {
-            var query = packageList
-                .Select(p => new PackageInfo
-                {
-                    RepositoryUrl = p.Repository != null ? p.Repository.Url : "[PRIVATE REPOSITORIES]",
-                    Name = p.Name,
-                    PackageType = p.PackageType,
-                    DownloadsTotalCount = p.Statistics.DownloadsTotalCount,
-                    Versions = p.Versions(null, null, null, null, null).AllPages().Select(v => v.Version).ToList()
-                })
-                .Compile();
-
-            try
-            {
-                return await connection.Run(query);
-            }
-            catch (GraphQLException e) when (e.Message.StartsWith("Could not resolve to a "))
-            {
-                return null;
-            }
-            catch (GraphQLException e)
-            {
-                throw new ApplicationException(e.Message, e);
-            }
         }
 
         class PackageInfo
