@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Threading;
-using DotNet.Globbing;
 using McMaster.Extensions.CommandLineUtils;
 using NuGet.Versioning;
 using RestSharp;
@@ -18,6 +17,7 @@ using Octokit.GraphQL;
 using Octokit.GraphQL.Model;
 using Octokit.GraphQL.Core;
 using Polly;
+using static Octokit.GraphQL.Variable;
 
 namespace GprTool
 {
@@ -84,69 +84,91 @@ namespace GprTool
                 return 1;
             }
 
-            var packageList = await GraphQLUtilities.FindPackageList(connection, PackagesPath);
-            if (packageList == null)
+            var vars = new Dictionary<string, object>
+            {
+                { "after", null },
+            };
+
+            var packageConnection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath, 100, Var("after"), vars);
+            if (packageConnection == null)
             {
                 Console.WriteLine("Couldn't find packages");
                 return 1;
             }
 
-            var query = packageList.Select(p =>
-                new
+            var query = packageConnection
+                .Select(p => new
                 {
-                    // If access token doesn't have `repo` scope, private packages will have a null `Repository` object
-                    IsPrivate = p.Repository != null ? p.Repository.IsPrivate : true,
-                    p.Name,
-                    p.Statistics.DownloadsTotalCount,
-                    Versions = p.Versions(null, null, null, null, null).AllPages().Select(v =>
-                    new
+                    p.PageInfo.EndCursor,
+                    p.PageInfo.HasNextPage,
+                    Packages = p.Nodes.Select(p => new
                     {
-                        v.Version,
-                        v.Statistics.DownloadsTotalCount,
-                        Files = v.Files(null, null, null, null, null).AllPages(40).Select(f => new { f.Name, f.UpdatedAt, f.Size }).ToList()
+                        // If access token doesn't have `repo` scope, private packages will have a null `Repository` object
+                        IsPrivate = p.Repository != null ? p.Repository.IsPrivate : true,
+                        p.Name,
+                        p.Statistics.DownloadsTotalCount,
+                        Versions = p.Versions(null, null, null, null, null).AllPages().Select(v =>
+                        new
+                        {
+                            v.Version,
+                            v.Statistics.DownloadsTotalCount,
+                            Files = v.Files(null, null, null, null, null).AllPages(40).Select(f => new { f.Name, f.UpdatedAt, f.Size }).ToList()
+                        }).ToList()
                     }).ToList()
                 }).Compile();
 
-            var packages = await connection.Run(query, cancellationToken: cancellationToken);
-
             long publicStorage = 0;
             long privateStorage = 0;
-            foreach (var package in packages)
+
+            while (true)
             {
-                Console.WriteLine($"{package.Name} ({package.DownloadsTotalCount} downloads)");
-                foreach (var version in package.Versions)
+                var packages = await connection.Run(query, vars, cancellationToken: cancellationToken);
+
+                foreach (var package in packages.Packages)
                 {
-                    foreach (var file in version.Files)
+                    Console.WriteLine($"{package.Name} ({package.DownloadsTotalCount} downloads)");
+                    foreach (var version in package.Versions)
                     {
-                        if (file.Size != null)
+                        foreach (var file in version.Files)
                         {
-                            if (package.IsPrivate)
+                            if (file.Size != null)
                             {
-                                privateStorage += (int)file.Size;
-                            }
-                            else
-                            {
-                                publicStorage += (int)file.Size;
+                                if (package.IsPrivate)
+                                {
+                                    privateStorage += (int)file.Size;
+                                }
+                                else
+                                {
+                                    publicStorage += (int)file.Size;
+                                }
                             }
                         }
-                    }
 
-                    if (version.Files.Count == 1)
-                    {
-                        var file = version.Files[0];
-                        if (file.Name.Contains(version.Version))
+                        if (version.Files.Count == 1)
                         {
-                            Console.WriteLine($"  {file.Name} ({file.UpdatedAt:d}, {version.DownloadsTotalCount} downloads, {file.Size} bytes)");
-                            continue;
+                            var file = version.Files[0];
+                            if (file.Name.Contains(version.Version))
+                            {
+                                Console.WriteLine($"  {file.Name} ({file.UpdatedAt:d}, {version.DownloadsTotalCount} downloads, {file.Size} bytes)");
+                                continue;
+                            }
                         }
-                    }
 
-                    Console.WriteLine($"  {version.Version} ({version.DownloadsTotalCount} downloads)");
-                    foreach (var file in version.Files)
-                    {
-                        Console.WriteLine($"    {file.Name} ({file.UpdatedAt:d}, {file.Size} bytes)");
+                        Console.WriteLine($"  {version.Version} ({version.DownloadsTotalCount} downloads)");
+                        foreach (var file in version.Files)
+                        {
+                            Console.WriteLine($"    {file.Name} ({file.UpdatedAt:d}, {file.Size} bytes)");
+                        }
                     }
                 }
+
+                if(packages.HasNextPage)
+                {
+                    vars["after"] = packages.EndCursor;
+                    continue;
+                }
+
+                break;
             }
 
             Console.WriteLine();
