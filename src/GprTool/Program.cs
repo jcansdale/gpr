@@ -305,7 +305,20 @@ namespace GprTool
         {
             var connection = CreateConnection();
 
-            var packages = await GetPackages(connection);
+            if (PackageOwner is null)
+            {
+                Console.WriteLine("Please include a packages path");
+                return 1;
+            }
+
+            var packageList = await GraphQLUtilities.FindPackageList(connection, PackageOwner);
+            if (packageList is null)
+            {
+                Console.WriteLine("Couldn't find packages");
+                return 1;
+            }
+
+            var packages = await GetPackages(connection, packageList);
 
             var groups = packages.GroupBy(p => p.RepositoryUrl);
             foreach (var group in groups.OrderBy(g => g.Key))
@@ -318,28 +331,6 @@ namespace GprTool
             }
 
             return 0;
-        }
-
-        async Task<IEnumerable<PackageInfo>> GetPackages(IConnection connection)
-        {
-            IEnumerable<PackageInfo> result;
-            if (PackageOwner is { } packageOwner)
-            {
-                var packageList = await GraphQLUtilities.FindPackageList(connection, packageOwner);
-                if (packageList is null)
-                {
-                    throw new ApplicationException($"Couldn't find a user or org with the login of '{packageOwner}'");
-                }
-
-                result = await GetPackages(connection, packageList);
-            }
-            else
-            {
-                var packageList = new Query().Viewer.Packages().AllPages();
-                result = await GetPackages(connection, packageList);
-            }
-
-            return result;
         }
 
         static async Task<IEnumerable<PackageInfo>> GetPackages(IConnection connection, IQueryableList<Package> packageList)
