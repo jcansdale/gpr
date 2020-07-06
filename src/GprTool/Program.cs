@@ -196,15 +196,23 @@ namespace GprTool
                 return 1;
             }
 
-            var packageList = await GraphQLUtilities.FindPackageList(connection, PackagesPath);
-            if (packageList == null)
+            var vars = new Dictionary<string, object>
+            {
+                { "after", null },
+            };
+
+            var packageConnection = await GraphQLUtilities.FindPackageConnection(connection, PackagesPath, 100, Var("after"), vars);
+            if (packageConnection == null)
             {
                 Console.WriteLine("Couldn't find packages");
                 return 1;
             }
 
-            var query = packageList.Select(p =>
-                new
+            var query = packageConnection.Select(p => new
+            {
+                p.PageInfo.EndCursor,
+                p.PageInfo.HasNextPage,
+                Packages = p.Nodes.Select(p => new
                 {
                     p.Repository.Url,
                     p.Name,
@@ -215,52 +223,63 @@ namespace GprTool
                         v.Version,
                         v.Statistics.DownloadsTotalCount
                     }).ToList()
-                }).Compile();
+                }).ToList()
+            }).Compile();
 
-            var packages = (await connection.Run(query, cancellationToken: cancellationToken)).ToList();
             var packagesDeleted = 0;
 
-            if (DockerCleanUp)
+            var hasNextPage = false;
+            do
             {
+                var result = await connection.Run(query, vars, cancellationToken: cancellationToken);
+                var packages = result.Packages.ToList();
+
+                if (DockerCleanUp)
+                {
+                    foreach (var package in packages)
+                    {
+                        if (package.Versions.Count == 1 && package.Versions[0] is var version && version.Version == "docker-base-layer")
+                        {
+                            Console.WriteLine($"Cleaning up '{package.Name}'");
+
+                            var versionId = version.Id;
+                            var success = await DeletePackageVersion(connection, versionId, cancellationToken);
+                            if (success)
+                            {
+                                Console.WriteLine($"  Deleted '{version.Version}'");
+                                packagesDeleted++;
+                            }
+                        }
+                    }
+
+                    Console.WriteLine("Complete");
+                    return 0;
+                }
+
                 foreach (var package in packages)
                 {
-                    if (package.Versions.Count == 1 && package.Versions[0] is var version && version.Version == "docker-base-layer")
+                    Console.WriteLine(package.Name);
+                    foreach (var version in package.Versions)
                     {
-                        Console.WriteLine($"Cleaning up '{package.Name}'");
-
-                        var versionId = version.Id;
-                        var success = await DeletePackageVersion(connection, versionId, cancellationToken);
-                        if (success)
+                        if (Force)
                         {
-                            Console.WriteLine($"  Deleted '{version.Version}'");
+                            Console.WriteLine($"  Deleting '{version.Version}'");
+
+                            var versionId = version.Id;
+                            await DeletePackageVersion(connection, versionId, cancellationToken);
                             packagesDeleted++;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"  {version.Version}");
                         }
                     }
                 }
 
-                Console.WriteLine("Complete");
-                return 0;
+                hasNextPage = result.HasNextPage;
+                vars["after"] = result.EndCursor;
             }
-
-            foreach (var package in packages)
-            {
-                Console.WriteLine(package.Name);
-                foreach (var version in package.Versions)
-                {
-                    if (Force)
-                    {
-                        Console.WriteLine($"  Deleting '{version.Version}'");
-
-                        var versionId = version.Id;
-                        await DeletePackageVersion(connection, versionId, cancellationToken);
-                        packagesDeleted++;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"  {version.Version}");
-                    }
-                }
-            }
+            while (hasNextPage);
 
             if (!Force)
             {
@@ -268,7 +287,7 @@ namespace GprTool
                 Console.WriteLine("To delete these package versions, use the --force option.");
             }
 
-            return packagesDeleted == packages.Count ? 0 : 1;
+            return 0;
         }
 
         async Task<bool> DeletePackageVersion(IConnection connection, ID versionId, CancellationToken cancellationToken)
