@@ -9,3 +9,4 @@ publish/
 nupkgs/
 src/GprTool/nupkg/
 **/TestResults/TestResults.xml
+node_modules/
