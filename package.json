@@ -1,25 +1,24 @@
 {
-    "name": "@jcansdale-test/gpr",
-    "version": "1.0.0",
-    "description": "",
-    "main": "index.js",
-    "bin": "index.js",
-    "scripts": {
-      "prepublishOnly": "dotnet publish src/GprTool/GprTool.csproj -c Release --self-contained false -o publish"
-    },
-    "repository": {
-      "type": "git",
-      "url": "git+https://github.com/jcansdale/gpr.git"
-    },
-    "keywords": [],
-    "author": "Jamie Cansdale",
-    "license": "ISC",
-    "bugs": {
-      "url": "https://github.com/jcansdale/gpr/issues"
-    },
-    "homepage": "https://github.com/jcansdale/gpr#readme",
-    "dependencies": {
-      "@jcansdale-test/dotnet-runtime": "^3.1.5"
-    }
+  "name": "@jcansdale-test/gpr",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "bin": "index.js",
+  "scripts": {
+    "prepublishOnly": "dotnet publish src/GprTool/GprTool.csproj -c Release --self-contained false -o publish"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jcansdale/gpr.git"
+  },
+  "keywords": [],
+  "author": "Jamie Cansdale",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jcansdale/gpr/issues"
+  },
+  "homepage": "https://github.com/jcansdale/gpr#readme",
+  "dependencies": {
+    "@jcansdale-test/dotnet-runtime": "^3.1.5"
   }
-  
+}
