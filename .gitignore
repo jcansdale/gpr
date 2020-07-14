@@ -5,7 +5,6 @@
 *.nupkg
 _NCrunch_*/
 *.ncrunchsolution
-publish/
 nupkgs/
 src/GprTool/nupkg/
 **/TestResults/TestResults.xml
