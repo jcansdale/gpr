@@ -5,6 +5,7 @@ const { spawn } = require('child_process');
 
 let platform = process.platform;
 let command = require('@jcansdale-test/dotnet-runtime');
+console.log(`command: ${command}`);
 
 if (!command) {
   console.error(`The ${platform} platform isn't currently supported.`);
@@ -12,6 +13,7 @@ if (!command) {
 }
 
 const application = path.join(__dirname, 'publish', 'gpr.dll');
+console.log(`application: ${application}`);
 
 const args = [application].concat(process.argv.slice(2));
 const child = spawn(command, args);
