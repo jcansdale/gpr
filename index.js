@@ -17,11 +17,11 @@ const args = [application].concat(process.argv.slice(2));
 const child = spawn(command, args);
 
 child.stdout.on('data', (data) => {
-  console.log(`${data}`);
+  process.stdout.write(data);
 });
 
 child.stderr.on('data', (data) => {
-  console.error(`${data}`);
+  process.stderr.write(data);
 });
 
 child.on('close', (code) => {
