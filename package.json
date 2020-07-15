@@ -19,6 +19,6 @@
   },
   "homepage": "https://github.com/jcansdale/gpr#readme",
   "dependencies": {
-    "@jcansdale-test/dotnet-runtime": "^3.1.5"
+    "@jcansdale-test/dotnet-runtime": "3.1.5-beta1"
   }
 }
