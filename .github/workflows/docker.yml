@@ -11,3 +11,4 @@ jobs:
       run: |
         docker login https://containers.pkg.github.com -u jcansdale -p ${{ secrets.GHCR_TOKEN }}
         docker push containers.pkg.github.com/jcansdale/gpr:windows
+
