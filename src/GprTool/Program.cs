@@ -539,6 +539,11 @@ namespace GprTool
                     x =>
                     {
                         x.Authenticator = new HttpBasicAuthenticator(user, token);
+                        x.ConfigureWebRequest(r =>
+                        {
+                            r.ServicePoint.Expect100Continue = true;
+                            r.SendChunked = true;
+                        });
                     });
 
                 var request = new RestRequest(Method.PUT);
