@@ -49,23 +49,7 @@ jobs:
       - name: Self publish tool
         if: github.repository == 'jcansdale/gpr' && matrix.os == 'ubuntu-latest'
         shell: bash
-        run: |
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-0 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-1 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-2 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-3 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-4 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-5 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-6 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-7 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-8 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-9 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-10 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-11 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-12 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-13 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-14 -k ${{ secrets.GITHUB_TOKEN }}
-          dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath --version ${{ steps.nbgv.outputs.SemVer2 }}-15 -k ${{ secrets.GITHUB_TOKEN }}
+        run: dotnet run --project $GprToolCsprojPath -- push $PackageOutputPath -k ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload nupkg
         if: github.repository == 'jcansdale/gpr'
