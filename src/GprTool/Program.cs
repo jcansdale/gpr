@@ -259,7 +259,7 @@ namespace GprTool
                 foreach (var package in packages)
                 {
                     Console.WriteLine(package.Name);
-                    foreach (var version in package.Versions)
+                    foreach (var version in package.Versions.Where(v => Version is null || v.Version == Version))
                     {
                         if (Force)
                         {
@@ -314,6 +314,9 @@ namespace GprTool
 
         [Option("--force", Description = "Delete all package versions")]
         protected bool Force { get; set; }
+
+        [Option("-v|--version", Description = "The version to delete")]
+        public string Version { get; set; }
     }
 
     [Command(Description = "List packages for user or org (viewer if not specified)")]
