@@ -1,5 +1,5 @@
 # https://hub.docker.com/_/microsoft-dotnet-core
-FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS build
+FROM mcr.microsoft.com/dotnet/core/sdk:3.1.401 AS build
 COPY . .
 RUN dotnet publish ./src/GprTool/GprTool.csproj -c Release -o publish
 
