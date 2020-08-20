@@ -236,6 +236,7 @@ namespace GprTool.Tests
 
             [TestCase("1.0.0", "1.0.0", false)]
             [TestCase("1.0.0", "1.0.1", true)]
+            [TestCase("1.0.0+metadata", "1.0.0", true)]
             public void ShouldRewriteNupkg_Version(string currentVersion, string updatedVersion, bool shouldUpdateVersion)
             {
                 const string repositoryUrl = "https://github.com/jcansdale/gpr";
