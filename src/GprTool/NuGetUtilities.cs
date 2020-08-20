@@ -125,11 +125,19 @@ namespace GprTool
 
             var manifest = ReadNupkgManifest(packageFile.FilenameAbsolutePath);
 
-            if (nuGetVersion != null && !nuGetVersion.Equals(manifest.Metadata.Version))
+            if (nuGetVersion != null)
             {
-                return true;
+                if (!nuGetVersion.Equals(manifest.Metadata.Version))
+                {
+                    return true;
+                }
+
+                if (!nuGetVersion.Metadata.Equals(manifest.Metadata.Version.Metadata))
+                {
+                    return true;
+                }
             }
-            
+
             return !string.Equals(packageFile.RepositoryUrl, manifest.Metadata.Repository?.Url, StringComparison.OrdinalIgnoreCase);
         }
 
