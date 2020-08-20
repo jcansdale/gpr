@@ -1,4 +1,4 @@
-name: gpr
+name: GitHub Action
 
 on: [push]
 
