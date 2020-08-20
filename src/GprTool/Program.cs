@@ -502,6 +502,17 @@ namespace GprTool
             {
                 if (packageFile == null) throw new ArgumentNullException(nameof(packageFile));
 
+                // Automatically strip metadata
+                if (nuGetVersion == null)
+                {
+                    var manifest = NuGetUtilities.ReadNupkgManifest(packageFile.FilenameAbsolutePath);
+                    if (manifest.Metadata.Version is { } version && version.HasMetadata)
+                    {
+                        nuGetVersion = new NuGetVersion(version.ToNormalizedString());
+                        Console.WriteLine($"[{packageFile.Filename}]: Stripping Metadata: {version.Metadata}, from Version: {version.ToFullString()}");
+                    }
+                }
+
                 cancellationToken.ThrowIfCancellationRequested();
 
                 NuGetVersion packageVersion;
@@ -525,7 +536,7 @@ namespace GprTool
 
                 Console.WriteLine($"[{packageFile.Filename}]: " +
                                   $"Repository url: {packageFile.RepositoryUrl}. " +
-                                  $"Version: {packageVersion}. " +
+                                  $"Version: {packageVersion.ToFullString()}. " +
                                   $"Size: {packageStream.Length} bytes. ");
 
                 await retryPolicy.ExecuteAndCaptureAsync(retryCancellationToken =>
