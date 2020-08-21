@@ -2,7 +2,7 @@ name: 'gpr tool'
 description: 'Run the gpr tool'
 inputs:
   command:
-    description: 'gpr sub-command'
+    description: 'gpr command'
     required: false
     default: list
   token:
@@ -12,8 +12,8 @@ inputs:
   path:
     description: 'Path to packages'
     required: true
-  options:
-    description: 'Any extra options'
+  args:
+    description: 'Any extra args'
     required: false
 runs:
   using: "composite"
