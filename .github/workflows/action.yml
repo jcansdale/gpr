@@ -15,15 +15,29 @@ jobs:
     name: publish
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0 # avoid shallow clone so nbgv can do its work.
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0 # avoid shallow clone so nbgv can do its work.
 
-      - uses: dotnet/nbgv@v0.3.1
-        with:
-          setAllVars: true
+    - uses: dotnet/nbgv@v0.3.1
+      with:
+        setAllVars: true
 
-      - name: Setup dotnet using global.json
-        uses: actions/setup-dotnet@v1.5.0
-              
-      - run: dotnet publish $GprToolCsprojPath -c ${{ env.config }}
+    - name: Setup dotnet using global.json
+      uses: actions/setup-dotnet@v1.5.0
+
+    - run: dotnet publish $GprToolCsprojPath -c ${{ env.config }}
+
+    - name: Publish GitHub Action
+      run: |
+        git checkout -b ${{ env.branch }}
+        git reset origin/${{ env.branch }}
+        git add src/GprTool/bin/${{ env.config }}/netcoreapp3.0
+        git config --global user.name "Jamie Cansdale"
+        git config --global user.email "jcansdale@gmail.com"
+        git commit -m "Add published files"
+        git push --set-upstream origin ${{ env.branch }} --force
+        git tag $TAG_NAME
+        git push origin $TAG_NAME
+      env:
+        TAG_NAME: v${{ env.NBGV_SemVer2 }}
