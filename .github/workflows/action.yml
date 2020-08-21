@@ -34,7 +34,7 @@ jobs:
         git init
         git checkout -b ${{ env.branch }}
         git remote add origin https://token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-        get fetch
+        git fetch
         git reset origin/${{ env.branch }}
         git add .
         git config --global user.name "Jamie Cansdale"
