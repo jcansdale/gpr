@@ -39,7 +39,7 @@ jobs:
         git add .
         git config --global user.name "Jamie Cansdale"
         git config --global user.email "jcansdale@gmail.com"
-        git commit -m "Add published files"
+        git commit -m "Add published files from ${{ github.sha }}"
         git push --set-upstream origin ${{ env.branch }} --force
         git tag $TAG_NAME
         git push origin $TAG_NAME
