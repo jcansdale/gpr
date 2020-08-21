@@ -3,43 +3,27 @@ name: GitHub Action
 on: [push]
 
 env:
-  NBGV_VERSION: 3.1.91
-  DOTNET_CLI_TELEMETRY_OPTOUT: 1
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1 
-  
+  DOTNET_NOLOGO: true
+  NBGV_VERSION: 3.1.91  
   GprToolCsprojPath: src/GprTool/GprTool.csproj
-  GprToolTestsCsprojPath: test/GprTool.Tests/GprTool.Tests.csproj
-  TestResultsDirectory: TestResults
+  config: Release
+  branch: action
 
 jobs:
 
   build-and-test:
-    name: Build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-      fail-fast: false
+    name: publish
+    runs-on: ubuntu-latest
     steps:
-      
-      - name: Checkout
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # avoid shallow clone so nbgv can do its work.
 
-      - name: Setup dotnet using global.json
-        uses: actions/setup-dotnet@v1.5.0
-    
       - uses: dotnet/nbgv@v0.3.1
         with:
           setAllVars: true
-          
-      - name: Build
-        shell: bash
-        run: |
-          dotnet build $GprToolCsprojPath -c Release -p:GeneratePackageOnBuild=True
-          
-      - name: Test
-        shell: bash
-        run: |
-          dotnet test $GprToolTestsCsprojPath -c Release --logger:nunit --verbosity normal -p:IsRunningTests=True --results-directory $TestResultsDirectory
+
+      - name: Setup dotnet using global.json
+        uses: actions/setup-dotnet@v1.5.0
+              
+      - run: dotnet publish $GprToolCsprojPath -c ${{ env.config }}
