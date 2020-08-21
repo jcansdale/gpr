@@ -32,7 +32,7 @@ jobs:
       run: |
         git checkout -b ${{ env.branch }}
         # git reset origin/${{ env.branch }}
-        git add src/GprTool/bin/${{ env.config }}/netcoreapp3.0
+        git add -f src/GprTool/bin/${{ env.config }}/netcoreapp3.0
         git config --global user.name "Jamie Cansdale"
         git config --global user.email "jcansdale@gmail.com"
         git commit -m "Add published files"
