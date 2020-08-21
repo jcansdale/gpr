@@ -34,7 +34,7 @@ jobs:
         git reset origin/${{ env.branch }}
         git config --global user.name "Jamie Cansdale"
         git config --global user.email "jcansdale@gmail.com"
-        git merge ${{ github.sha }}
+        git merge ${{ github.sha }} --squash
         git add -f src/GprTool/bin/${{ env.config }}/netcoreapp3.0/publish
         git commit -m "Add published files"
         git push --set-upstream origin ${{ env.branch }} --force
