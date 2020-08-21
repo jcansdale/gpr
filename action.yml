@@ -18,7 +18,7 @@ inputs:
 runs:
   using: "composite"
   steps: 
-    - run: dotnet exec ${{ github.action_path }}/src/GprTool/bin/Release/netcoreapp3.0/publish/gpr.dll ${{ inputs.command }} ${{ inputs.path }} -k ${{ inputs.token }} ${{ inputs.options }}
+    - run: dotnet exec ${{ github.action_path }}/gpr.dll ${{ inputs.command }} ${{ inputs.path }} -k ${{ inputs.token }} ${{ inputs.options }}
       shell: bash
       env:
         DOTNET_NOLOGO: true
