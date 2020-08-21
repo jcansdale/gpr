@@ -33,8 +33,10 @@ jobs:
         git checkout -b ${{ env.branch }}
         git config --global user.name "Jamie Cansdale"
         git config --global user.email "jcansdale@gmail.com"
+        git reset origin/${{ env.branch }}
+        git add .
         git add -f src/GprTool/bin/${{ env.config }}/netcoreapp3.0/publish
-        git commit -m "Add published files"
+        git commit -m "Add source and published files"
         git push --set-upstream origin ${{ env.branch }} --force
         git tag $TAG_NAME
         git push origin $TAG_NAME
