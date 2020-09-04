@@ -20,6 +20,17 @@ jobs:
         docker login -u jcansdale -p ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
         docker push docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }}
 
+
+    - name: Login to ghcr.io
+      run: docker login https://ghcr.io -u token -p ${{ secrets.GHIO_TOKEN }}
+
+    - name: Publish to ghcr.io
+      run: |
+        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} ${{ env.GHCR_IMAGE }}
+        docker push ${{ env.GHCR_IMAGE }}
+      env:
+        GHCR_IMAGE: ghcr.io/jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
+
     - name: Publish latest from master
       if: github.ref == 'refs/heads/master'
       run: |
