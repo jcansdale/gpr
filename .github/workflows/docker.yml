@@ -1,8 +1,13 @@
 name: Docker
 on: [push,repository_dispatch]
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    env:
+      BUILT_IMAGE_NAME: gpr
+
     steps:
     - uses: actions/checkout@v1
 
@@ -13,35 +18,42 @@ jobs:
       id: nbgv
 
     - name: Build docker image
-      run: docker build . -t docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} --build-arg READ_PACKAGES_TOKEN=${{ secrets.READ_PACKAGES_TOKEN }}
+      run: docker build . -t ${{ env.BUILT_IMAGE_NAME }} --build-arg READ_PACKAGES_TOKEN=${{ secrets.READ_PACKAGES_TOKEN }}
 
     - name: Publish docker image
       run: |
         docker login -u jcansdale -p ${{ secrets.GITHUB_TOKEN }} docker.pkg.github.com
-        docker push docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }}
-
+        docker tag ${{ env.BUILT_IMAGE_NAME }} ${{ env.IMAGE_NAME }}
+        docker push ${{ env.IMAGE_NAME }}
+      env:
+        IMAGE_NAME: docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }}
 
     - name: Login to ghcr.io
       run: docker login https://ghcr.io -u token -p ${{ secrets.GHCR_TOKEN }}
 
     - name: Publish to ghcr.io
       run: |
-        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} ${{ env.GHCR_IMAGE }}
-        docker push ${{ env.GHCR_IMAGE }}
+        docker tag ${{ env.BUILT_IMAGE_NAME }} ${{ env.IMAGE_NAME }}
+        docker push ${{ env.IMAGE_NAME }}
       env:
         GHCR_IMAGE: ghcr.io/jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
 
     - name: Publish latest from master
       if: github.ref == 'refs/heads/master'
       run: |
-        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} docker.pkg.github.com/jcansdale/gpr/gpr:latest
-        docker push docker.pkg.github.com/jcansdale/gpr/gpr:latest
+        docker tag ${{ env.BUILT_IMAGE_NAME }} ${{ env.IMAGE_NAME }}
+        docker push ${{ env.IMAGE_NAME }}
+      env:
+        IMAGE_NAME: docker.pkg.github.com/jcansdale/gpr/gpr:latest
 
     - name: Publish to DockerHub
       if: github.ref == 'refs/heads/master'
       run: |
         docker login -u jcansdale -p ${{ secrets.DOCKER_HUB_TOKEN }}
-        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
-        docker push jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
-        docker tag docker.pkg.github.com/jcansdale/gpr/gpr:${{ steps.nbgv.outputs.SemVer2 }} jcansdale/gpr:latest
-        docker push jcansdale/gpr:latest
+        docker tag ${{ env.BUILT_IMAGE_NAME }} ${{ env.IMAGE_NAME }}
+        docker push ${{ env.IMAGE_NAME }}
+        docker tag ${{ env.BUILT_IMAGE_NAME }} ${{ env.LATEST_IMAGE_NAME }}
+        docker push ${{ env.LATEST_IMAGE_NAME }}
+      env:
+        IMAGE_NAME: jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
+        LATEST_IMAGE_NAME: jcansdale/gpr:latest
