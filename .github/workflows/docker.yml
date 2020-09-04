@@ -22,7 +22,7 @@ jobs:
 
 
     - name: Login to ghcr.io
-      run: docker login https://ghcr.io -u token -p ${{ secrets.GHIO_TOKEN }}
+      run: docker login https://ghcr.io -u token -p ${{ secrets.GHCR_TOKEN }}
 
     - name: Publish to ghcr.io
       run: |
