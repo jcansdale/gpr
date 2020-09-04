@@ -36,7 +36,7 @@ jobs:
         docker tag ${{ env.BUILT_IMAGE_NAME }} ${{ env.IMAGE_NAME }}
         docker push ${{ env.IMAGE_NAME }}
       env:
-        GHCR_IMAGE: ghcr.io/jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
+        IMAGE_NAME: ghcr.io/jcansdale/gpr:${{ steps.nbgv.outputs.SemVer2 }}
 
     - name: Publish latest from master
       if: github.ref == 'refs/heads/master'
