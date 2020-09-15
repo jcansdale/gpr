@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v3.0": {
-      "gpr/0.1.255-gb0eaba2381": {
+      "gpr/0.1.256-g3f74e83a92": {
         "dependencies": {
           "DotNet.Glob": "3.0.9",
           "McMaster.Extensions.CommandLineUtils": "3.0.0",
@@ -961,7 +961,7 @@
     }
   },
   "libraries": {
-    "gpr/0.1.255-gb0eaba2381": {
+    "gpr/0.1.256-g3f74e83a92": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
