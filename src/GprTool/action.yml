@@ -2,7 +2,7 @@ name: 'gpr tool'
 description: 'Run the gpr tool'
 inputs:
   command:
-    description: 'gpr sub-command'
+    description: 'gpr command'
     required: false
     default: list
   token:
@@ -12,15 +12,13 @@ inputs:
   path:
     description: 'Path to packages'
     required: true
-  options:
-    description: 'Any extra options'
+  args:
+    description: 'Any extra args'
     required: false
 runs:
   using: "composite"
   steps: 
-    - run: |
-        dotnet tool update gpr -g
-        gpr ${{ inputs.command }} ${{ inputs.path }} -k ${{ inputs.token }} ${{ inputs.options }}
+    - run: dotnet exec ${{ github.action_path }}/gpr.dll ${{ inputs.command }} ${{ inputs.path }} -k ${{ inputs.token }} ${{ inputs.args }}
       shell: bash
       env:
         DOTNET_NOLOGO: true
