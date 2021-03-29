@@ -724,14 +724,13 @@ namespace GprTool
 </packageSourceCredentials>");
 
             Console.WriteLine();
-            Console.WriteLine("A Maven `settings.xml` file:");
-            Console.WriteLine(@$"<servers>
-  <server>
-    <id>github</id>
-    <username>PublicToken</username>
-    <password>{xmlEncoded}</password>
-  </server>
-</servers>");
+            Console.WriteLine("A Maven `pom.xml` file:");
+            Console.WriteLine(@$"<repositories>
+  <repository>
+    <id>github-public</id>
+    <url>https://public:{xmlEncoded}@maven.pkg.github.com/<OWNER>/*</url>
+  </repository>
+</repositories>");
 
             var unicodeEncode = UnicodeEncode(Token);
 
@@ -746,12 +745,12 @@ namespace GprTool
 
         static string XmlEncode(string str)
         {
-            return string.Concat(str.ToCharArray().Select(ch => $"&#{(int)ch};"));
+            return $"&#{(int)str[0]};" + str.Substring(1);
         }
 
         static string UnicodeEncode(string str)
         {
-            return string.Concat(str.ToCharArray().Select(ch => $"\\u{((int)ch).ToString("x4")}"));
+            return $"\\u{((int)str[0]).ToString("x4")}" + str.Substring(1);
         }
 
         [Argument(0, Description = "Personal Access Token")]
