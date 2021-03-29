@@ -746,12 +746,12 @@ namespace GprTool
 
         static string XmlEncode(string str)
         {
-            return string.Concat(str.ToCharArray().Select(ch => $"&#{(int)ch};"));
+            return $"&#{(int)str[0]};" + str.Substring(1);
         }
 
         static string UnicodeEncode(string str)
         {
-            return string.Concat(str.ToCharArray().Select(ch => $"\\u{((int)ch).ToString("x4")}"));
+            return $"\\u{((int)str[0]).ToString("x4")}" + str.Substring(1);
         }
 
         [Argument(0, Description = "Personal Access Token")]
