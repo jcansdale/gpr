@@ -724,14 +724,13 @@ namespace GprTool
 </packageSourceCredentials>");
 
             Console.WriteLine();
-            Console.WriteLine("A Maven `settings.xml` file:");
-            Console.WriteLine(@$"<servers>
-  <server>
-    <id>github</id>
-    <username>PublicToken</username>
-    <password>{xmlEncoded}</password>
-  </server>
-</servers>");
+            Console.WriteLine("A Maven `pom.xml` file:");
+            Console.WriteLine(@$"<repositories>
+  <repository>
+    <id>github-public</id>
+    <url>https://public:{xmlEncoded}@maven.pkg.github.com/<OWNER>/*</url>
+  </repository>
+</repositories>");
 
             var unicodeEncode = UnicodeEncode(Token);
 
