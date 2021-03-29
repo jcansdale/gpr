@@ -8,6 +8,7 @@ env:
   GprToolCsprojPath: src/GprTool/GprTool.csproj
   config: Release
   branch: action
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 
 jobs:
 
