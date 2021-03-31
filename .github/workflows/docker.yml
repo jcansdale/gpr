@@ -7,6 +7,7 @@ jobs:
 
     env:
       BUILT_IMAGE_NAME: gpr
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
 
     steps:
     - uses: actions/checkout@v1
@@ -40,7 +41,7 @@ jobs:
         IMAGE_NAME: docker.pkg.github.com/jcansdale/gpr/gpr:latest
 
     - name: Login to ghcr.io
-      run: docker login https://ghcr.io -u token --password-stdin <<< ${{ secrets.GHCR_TOKEN }}
+      run: docker login https://ghcr.io -u token --password-stdin <<< ${{ github.token }}
 
     - name: Publish to ghcr.io
       run: |
