@@ -33,13 +33,14 @@ namespace GprTool
 
             repositoryUrl = repositoryUrl.Trim();
 
+            Uri baseUri = GetBaseUri();
             if (Uri.IsWellFormedUriString(repositoryUrl, UriKind.Relative))
             {
-                repositoryUrl = $"https://github.com/{repositoryUrl}";
+                repositoryUrl = $"{baseUri}/{repositoryUrl}";
             }
 
             if (!Uri.TryCreate(repositoryUrl, UriKind.Absolute, out var repositoryUri) 
-                || repositoryUri.Host != "github.com")
+                || repositoryUri.Host != baseUri.Host)
             {
                 return false;
             }
@@ -66,7 +67,7 @@ namespace GprTool
 
             packageFile.Owner = ownerAndRepositoryName[0];
             packageFile.RepositoryName = ownerAndRepositoryName[1];
-            packageFile.RepositoryUrl = $"https://github.com/{packageFile.Owner}/{packageFile.RepositoryName}";
+            packageFile.RepositoryUrl = $"{baseUri}/{packageFile.Owner}/{packageFile.RepositoryName}";
 
             return true;
         }
@@ -291,6 +292,26 @@ namespace GprTool
             return Path.Combine(baseDir, "NuGet", "NuGet.Config");
         }
 
+        public static Uri GetBaseUri()
+        {
+            string baseUrlEnvVar = Environment.GetEnvironmentVariable("BASE_URL");
+
+            Uri uriResult;
+            bool isValid = Uri.TryCreate(baseUrlEnvVar, UriKind.Absolute, out uriResult)
+                            && uriResult.Scheme == Uri.UriSchemeHttps;
+            if (isValid)
+            {
+                return uriResult;
+            }
+            else if (baseUrlEnvVar == null)
+            {
+                return new Uri("https://nuget.pkg.github.com");
+            }
+            else
+            {
+                throw new ApplicationException($"BASE_URL is invalid Uri: {baseUrlEnvVar}");
+            }
+        }
     }
 
     public class DisposableDirectory : IDisposable
