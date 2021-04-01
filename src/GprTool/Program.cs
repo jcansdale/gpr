@@ -538,8 +538,7 @@ namespace GprTool
                 if (packageFile == null) throw new ArgumentNullException(nameof(packageFile));
                 if (packageStream == null) throw new ArgumentNullException(nameof(packageStream));
 
-                var baseUri = NuGetUtilities.GetBaseUri();
-                var client = WithRestClient($"{baseUri}/{packageFile.Owner}/",
+                var client = WithRestClient($"https://{packageFile.NugetPackageEndpoint}/{packageFile.Owner}/",
                     x =>
                     {
                         x.Authenticator = new HttpBasicAuthenticator(user, token);

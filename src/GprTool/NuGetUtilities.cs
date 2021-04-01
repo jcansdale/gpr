@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 using NuGet.Packaging;
@@ -20,6 +22,7 @@ namespace GprTool
 
         public string Filename { get; set; }
         public string FilenameAbsolutePath { get; set; }
+        public string NugetPackageEndpoint { get; set; }
     }
 
     public class NuGetUtilities
@@ -40,7 +43,7 @@ namespace GprTool
             }
 
             if (!Uri.TryCreate(repositoryUrl, UriKind.Absolute, out var repositoryUri) 
-                || repositoryUri.Host != baseUri.Host)
+                || !IsSupportedHost(repositoryUri.Host))
             {
                 return false;
             }
@@ -67,7 +70,15 @@ namespace GprTool
 
             packageFile.Owner = ownerAndRepositoryName[0];
             packageFile.RepositoryName = ownerAndRepositoryName[1];
-            packageFile.RepositoryUrl = $"{baseUri}/{packageFile.Owner}/{packageFile.RepositoryName}";
+            packageFile.RepositoryUrl = $"https://{repositoryUri.Host}/{packageFile.Owner}/{packageFile.RepositoryName}";
+            if (repositoryUri.Host != "github.com")
+            {
+                packageFile.NugetPackageEndpoint = $"nuget.{repositoryUri.Host}";
+            }
+            else
+            {
+                packageFile.NugetPackageEndpoint = $"nuget.pkg.github.com";
+            }
 
             return true;
         }
@@ -292,26 +303,25 @@ namespace GprTool
             return Path.Combine(baseDir, "NuGet", "NuGet.Config");
         }
 
-        public static Uri GetBaseUri()
+        private static bool IsSupportedHost(string host)
         {
-            string baseUrlEnvVar = Environment.GetEnvironmentVariable("BASE_URL");
-
-            Uri uriResult;
-            bool isValid = Uri.TryCreate(baseUrlEnvVar, UriKind.Absolute, out uriResult)
-                            && uriResult.Scheme == Uri.UriSchemeHttps;
-            if (isValid)
+            foreach (string supported in m_supportedHosts)
             {
-                return uriResult;
+                Regex rgx = new Regex(supported);
+                if (rgx.IsMatch(host))
+                {
+                    return true;
+                }
             }
-            else if (baseUrlEnvVar == null)
-            {
-                return new Uri("https://nuget.pkg.github.com");
-            }
-            else
-            {
-                throw new ApplicationException($"BASE_URL is invalid Uri: {baseUrlEnvVar}");
-            }
+            
+            return false;
         }
+
+        private static readonly List<string> m_supportedHosts = new List<string>()
+        {
+            "github.com",
+            @".*\.githubenterprise\.com"
+        };
     }
 
     public class DisposableDirectory : IDisposable
