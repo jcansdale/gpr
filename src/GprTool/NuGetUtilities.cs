@@ -36,10 +36,9 @@ namespace GprTool
 
             repositoryUrl = repositoryUrl.Trim();
 
-            Uri baseUri = GetBaseUri();
             if (Uri.IsWellFormedUriString(repositoryUrl, UriKind.Relative))
             {
-                repositoryUrl = $"{baseUri}/{repositoryUrl}";
+                repositoryUrl = $"https://github.com/{repositoryUrl}";
             }
 
             if (!Uri.TryCreate(repositoryUrl, UriKind.Absolute, out var repositoryUri) 

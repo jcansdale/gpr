@@ -26,5 +26,3 @@ Commands:
 
 Run 'gpr [command] --help' for more information about a command.
 ```
-
-:bulb: By default https://nuget.pkg.github.com is used as the endpoint. You can overwrite it by setting `BASE_URL` environment variable to a private instance.

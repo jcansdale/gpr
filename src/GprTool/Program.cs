@@ -618,8 +618,7 @@ namespace GprTool
         {
             var user = "GprTool";
             var token = GetAccessToken();
-            var baseUri = NuGetUtilities.GetBaseUri();
-            var client = WithRestClient($"{baseUri}/{Owner}/{Name}/{Version}.json");
+            var client = WithRestClient($"https://nuget.pkg.github.com/{Owner}/{Name}/{Version}.json");
             client.Authenticator = new HttpBasicAuthenticator(user, token);
             var request = new RestRequest(Method.GET);
             var response = await client.ExecuteAsync<IRestResponse>(request, cancellationToken: cancellationToken);
