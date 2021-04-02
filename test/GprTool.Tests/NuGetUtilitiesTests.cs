@@ -212,6 +212,27 @@ namespace GprTool.Tests
                 Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
             }
 
+            [TestCase("ritchxu/gpr", true, "ritchxu", "gpr", "https://github.com/ritchxu/gpr", "nuget.pkg.github.com")]
+            [TestCase("https://foo.githubenterprise.com/ritchxu/gpr", true, "ritchxu", "gpr", "https://foo.githubenterprise.com/ritchxu/gpr", "nuget.foo.githubenterprise.com")]
+            [TestCase("https://foo.bar.com/ritchxu/gpr", false, null, null, null, null)]
+            public void BuildOwnerAndRepositoryFromUrl(
+                string repositoryUrl,
+                bool expectedResult,
+                string expectedOwner,
+                string expectedRepositoryName,
+                string expectedGithubRepositoryUrl,
+                string expectedNugetPackageEndpoint)
+            {
+                var packageFile = new PackageFile();
+
+                Assert.That(NuGetUtilities.BuildOwnerAndRepositoryFromUrl(packageFile, repositoryUrl), Is.EqualTo(expectedResult));
+
+                Assert.That(packageFile.Owner, Is.EqualTo(expectedOwner));
+                Assert.That(packageFile.RepositoryName, Is.EqualTo(expectedRepositoryName));
+                Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
+                Assert.That(packageFile.NugetPackageEndpoint, Is.EqualTo(expectedNugetPackageEndpoint));
+            }
+
             [Test]
             public void ReadNupkgManifest()
             {
