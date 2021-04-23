@@ -9,7 +9,6 @@ on:
   workflow_dispatch:
 
 env:
-  NBGV_VERSION: 3.1.91
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   
@@ -37,8 +36,6 @@ jobs:
       - name: Setup dotnet using global.json
         uses: actions/setup-dotnet@v1.5.0
     
-      - uses: dotnet/nbgv@v0.3.1
-          
       - name: Build
         shell: bash
         run: |
