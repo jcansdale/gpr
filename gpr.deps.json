@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v3.0": {
-      "gpr/0.1.279": {
+      "gpr/0.1.280-g32cfeab242": {
         "dependencies": {
           "DotNet.Glob": "3.0.9",
           "McMaster.Extensions.CommandLineUtils": "3.0.0",
@@ -14,7 +14,7 @@
           "NuGet.Packaging": "5.6.0",
           "Octokit.GraphQL": "0.1.4-packages-preview2",
           "Polly": "7.2.1",
-          "RestSharp": "106.11.4"
+          "RestSharp": "106.12.0"
         },
         "runtime": {
           "gpr.dll": {}
@@ -249,11 +249,11 @@
           }
         }
       },
-      "RestSharp/106.11.4": {
+      "RestSharp/106.12.0": {
         "runtime": {
           "lib/netstandard2.0/RestSharp.dll": {
-            "assemblyVersion": "106.11.4.0",
-            "fileVersion": "106.11.4.0"
+            "assemblyVersion": "106.12.0.0",
+            "fileVersion": "106.12.0.0"
           }
         }
       },
@@ -961,7 +961,7 @@
     }
   },
   "libraries": {
-    "gpr/0.1.279": {
+    "gpr/0.1.280-g32cfeab242": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
@@ -1092,12 +1092,12 @@
       "path": "polly/7.2.1",
       "hashPath": "polly.7.2.1.nupkg.sha512"
     },
-    "RestSharp/106.11.4": {
+    "RestSharp/106.12.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-vx35q52cM3UQNOiN3UqSQ9U7I5UeoyzVmjsWKQxOxn6FVu+n01+SNwhxc/jvf92WPBmmwzTV4VYTeTg4KviJdA==",
-      "path": "restsharp/106.11.4",
-      "hashPath": "restsharp.106.11.4.nupkg.sha512"
+      "sha512": "sha512-irOsQHe5nTJB0BKxGQnTX1dsgCPl5dLTxvL7gbl98JiFPiHMN4wpFyUG/66ZpaFCsIrPKh6XwozWXlwYe9JwYQ==",
+      "path": "restsharp/106.12.0",
+      "hashPath": "restsharp.106.12.0.nupkg.sha512"
     },
     "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl/4.3.0": {
       "type": "package",
