@@ -1,6 +1,6 @@
 name: gpr
 
-on: [push,repository_dispatch]
+on: [push,repository_dispatch,workflow_dispatch]
 
 env:
   NBGV_VERSION: 3.1.91
