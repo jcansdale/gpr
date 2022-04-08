@@ -399,6 +399,9 @@ namespace GprTool
     [Command(Description = "Publish a package")]
     public class PushCommand : GprCommandBase
     {
+        [Option(Description = "Don't fail if there's already a package on the server with the same version")]
+        public bool IgnoreDuplicate { get; set; } = false;
+
         static IAsyncPolicy<IRestResponse> BuildRetryAsyncPolicy(int retryNumber, int retrySleepSeconds, int timeoutSeconds)
         {
             if (retryNumber <= 0)
@@ -491,14 +494,14 @@ namespace GprTool
             var retryPolicy = BuildRetryAsyncPolicy(Math.Max(0, Retries), 10, 300);
 
             await packageFiles.ForEachAsync(
-                (packageFile, packageCancellationToken) => UploadPackageAsync(packageFile, nuGetVersion, token, retryPolicy, packageCancellationToken),
+                (packageFile, packageCancellationToken) => UploadPackageAsync(packageFile, nuGetVersion, token, retryPolicy, packageCancellationToken, IgnoreDuplicate),
                 (packageFile, exception) =>
                 {
                     Console.WriteLine($"[{packageFile.Filename}]: {exception.Message}");
                 }, cancellationToken, Math.Max(1, Concurrency));
 
             static async Task UploadPackageAsync(PackageFile packageFile,
-                NuGetVersion nuGetVersion, string token, IAsyncPolicy<IRestResponse> retryPolicy, CancellationToken cancellationToken)
+                NuGetVersion nuGetVersion, string token, IAsyncPolicy<IRestResponse> retryPolicy, CancellationToken cancellationToken, bool ignoreDuplicates)
             {
                 if (packageFile == null) throw new ArgumentNullException(nameof(packageFile));
 
@@ -529,11 +532,11 @@ namespace GprTool
                                   $"Size: {packageStream.Length} bytes. ");
 
                 await retryPolicy.ExecuteAndCaptureAsync(retryCancellationToken =>
-                    UploadPackageAsyncImpl(packageFile, packageStream, token, retryCancellationToken), cancellationToken);
+                    UploadPackageAsyncImpl(packageFile, packageStream, token, retryCancellationToken, ignoreDuplicates), cancellationToken);
             }
 
             static async Task<IRestResponse> UploadPackageAsyncImpl(PackageFile packageFile, MemoryStream packageStream, string token,
-                CancellationToken cancellationToken)
+                CancellationToken cancellationToken, bool ignoreDuplicates)
             {
                 if (packageFile == null) throw new ArgumentNullException(nameof(packageFile));
                 if (packageStream == null) throw new ArgumentNullException(nameof(packageStream));
@@ -556,11 +559,22 @@ namespace GprTool
 
                 var response = await client.ExecuteAsync(request, cancellationToken);
 
-                packageFile.IsUploaded = response.StatusCode == HttpStatusCode.OK;
+                packageFile.IsUploaded = false;
 
-                if (packageFile.IsUploaded)
+                if (response.StatusCode == HttpStatusCode.OK)
                 {
+                    packageFile.IsUploaded = true;
+
                     Console.WriteLine($"[{packageFile.Filename}]: {response.Content}");
+                    return response;
+                }
+
+                if (response.StatusCode == HttpStatusCode.Conflict && ignoreDuplicates)
+                {
+                    packageFile.IsUploaded = true;
+
+                    Console.WriteLine($"[{packageFile.Filename}]: {FindWarning(response)}");
+                    Console.WriteLine($"[{packageFile.Filename}]: Ignoring duplicate package error.");
                     return response;
                 }
 
