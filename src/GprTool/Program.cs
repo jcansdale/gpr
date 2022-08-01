@@ -462,11 +462,20 @@ namespace GprTool
 
                 if (RepositoryUrl == null)
                 {
-                    NuGetUtilities.BuildOwnerAndRepositoryFromUrlFromNupkg(packageFile);
+                    if (!NuGetUtilities.BuildOwnerAndRepositoryFromUrlFromNupkg(packageFile))
+                    {
+                        Console.WriteLine("Could not build owner and repository for provided package");
+                        return 1;
+                    }
                 }
                 else
                 {
-                    NuGetUtilities.BuildOwnerAndRepositoryFromUrl(packageFile, RepositoryUrl);
+
+                    if (!NuGetUtilities.BuildOwnerAndRepositoryFromUrl(packageFile, RepositoryUrl))
+                    {
+                        Console.WriteLine("Could not build owner and repository for provided package and repository url");
+                        return 1;
+                    }
                 }
 
                 if (packageFile.Owner == null

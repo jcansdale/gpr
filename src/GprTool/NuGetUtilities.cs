@@ -41,8 +41,7 @@ namespace GprTool
                 repositoryUrl = $"https://github.com/{repositoryUrl}";
             }
 
-            if (!Uri.TryCreate(repositoryUrl, UriKind.Absolute, out var repositoryUri) 
-                || !IsSupportedHost(repositoryUri.Host))
+            if (!Uri.TryCreate(repositoryUrl, UriKind.Absolute, out var repositoryUri))
             {
                 return false;
             }
