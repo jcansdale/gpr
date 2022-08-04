@@ -214,7 +214,7 @@ namespace GprTool.Tests
 
             [TestCase("ritchxu/gpr", true, "ritchxu", "gpr", "https://github.com/ritchxu/gpr", "nuget.pkg.github.com")]
             [TestCase("https://foo.githubenterprise.com/ritchxu/gpr", true, "ritchxu", "gpr", "https://foo.githubenterprise.com/ritchxu/gpr", "nuget.foo.githubenterprise.com")]
-            [TestCase("https://foo.bar.com/ritchxu/gpr", false, null, null, null, null)]
+            [TestCase("https://foo.bar.com/ritchxu/gpr", true, "ritchxu", "gpr", "https://foo.bar.com/ritchxu/gpr", "nuget.foo.bar.com")]
             public void BuildOwnerAndRepositoryFromUrl(
                 string repositoryUrl,
                 bool expectedResult,
