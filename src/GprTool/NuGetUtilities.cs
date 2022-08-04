@@ -41,8 +41,7 @@ namespace GprTool
                 repositoryUrl = $"https://github.com/{repositoryUrl}";
             }
 
-            if (!Uri.TryCreate(repositoryUrl, UriKind.Absolute, out var repositoryUri) 
-                || !IsSupportedHost(repositoryUri.Host))
+            if (!Uri.TryCreate(repositoryUrl, UriKind.Absolute, out var repositoryUri))
             {
                 return false;
             }
@@ -301,26 +300,6 @@ namespace GprTool
 
             return Path.Combine(baseDir, "NuGet", "NuGet.Config");
         }
-
-        private static bool IsSupportedHost(string host)
-        {
-            foreach (string supported in m_supportedHosts)
-            {
-                Regex rgx = new Regex(supported);
-                if (rgx.IsMatch(host))
-                {
-                    return true;
-                }
-            }
-            
-            return false;
-        }
-
-        private static readonly List<string> m_supportedHosts = new List<string>()
-        {
-            "github.com",
-            @".*\.githubenterprise\.com"
-        };
     }
 
     public class DisposableDirectory : IDisposable
