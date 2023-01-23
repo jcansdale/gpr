@@ -201,7 +201,7 @@ namespace GprTool.Tests
                         Type = "git"
                     };
                 }));
-
+                
                 packageBuilderContext.Build();
 
                 var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, null);
@@ -213,11 +213,13 @@ namespace GprTool.Tests
                 Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
             }
 
-            [TestCase("ritchxu/gpr", true, "ritchxu", "gpr", "https://github.com/ritchxu/gpr", "nuget.pkg.github.com")]
-            [TestCase("https://foo.githubenterprise.com/ritchxu/gpr", true, "ritchxu", "gpr", "https://foo.githubenterprise.com/ritchxu/gpr", "nuget.foo.githubenterprise.com")]
-            [TestCase("https://foo.bar.com/ritchxu/gpr", true, "ritchxu", "gpr", "https://foo.bar.com/ritchxu/gpr", "nuget.foo.bar.com")]
+            [TestCase("ritchxu/gpr", true, true, "ritchxu", "gpr", "https://github.com/ritchxu/gpr", "nuget.pkg.github.com")]
+            [TestCase("https://foo.githubenterprise.com/ritchxu/gpr", true, true, "ritchxu", "gpr", "https://foo.githubenterprise.com/ritchxu/gpr", "nuget.foo.githubenterprise.com")]
+            [TestCase("https://foo.bar.com/ritchxu/gpr", true, true, "ritchxu", "gpr", "https://foo.bar.com/ritchxu/gpr", "nuget.foo.bar.com")]
+            [TestCase("https://foo.bar.com/ritchxu/gpr", false, true, "ritchxu", "gpr", "https://foo.bar.com/ritchxu/gpr", "foo.bar.com/_registry/nuget")]
             public void BuildOwnerAndRepositoryFromUrl(
                 string repositoryUrl,
+                bool subdomainIsolation,
                 bool expectedResult,
                 string expectedOwner,
                 string expectedRepositoryName,
@@ -226,7 +228,7 @@ namespace GprTool.Tests
             {
                 var packageFile = new PackageFile();
 
-                Assert.That(NuGetUtilities.BuildOwnerAndRepositoryFromUrl(packageFile, repositoryUrl), Is.EqualTo(expectedResult));
+                Assert.That(NuGetUtilities.BuildOwnerAndRepositoryFromUrl(packageFile, repositoryUrl, subdomainIsolation), Is.EqualTo(expectedResult));
 
                 Assert.That(packageFile.Owner, Is.EqualTo(expectedOwner));
                 Assert.That(packageFile.RepositoryName, Is.EqualTo(expectedRepositoryName));

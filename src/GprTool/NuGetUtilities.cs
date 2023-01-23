@@ -27,7 +27,7 @@ namespace GprTool
 
     public class NuGetUtilities
     {
-        public static bool BuildOwnerAndRepositoryFromUrl(PackageFile packageFile, string repositoryUrl)
+        public static bool BuildOwnerAndRepositoryFromUrl(PackageFile packageFile, string repositoryUrl, bool subdomainIsolation)
         {
             if (repositoryUrl == null)
             {
@@ -69,26 +69,27 @@ namespace GprTool
             packageFile.Owner = ownerAndRepositoryName[0];
             packageFile.RepositoryName = ownerAndRepositoryName[1];
             packageFile.RepositoryUrl = $"https://{repositoryUri.Host}/{packageFile.Owner}/{packageFile.RepositoryName}";
+
             if (repositoryUri.Host != "github.com")
             {
-                packageFile.NugetPackageEndpoint = $"nuget.{repositoryUri.Host}";
+                packageFile.NugetPackageEndpoint = subdomainIsolation ? $"nuget.{repositoryUri.Host}" : $"{repositoryUri.Host}/_registry/nuget";
             }
             else
             {
                 packageFile.NugetPackageEndpoint = $"nuget.pkg.github.com";
             }
-
+            
             return true;
         }
 
-        public static bool BuildOwnerAndRepositoryFromUrlFromNupkg(PackageFile packageFile)
+        public static bool BuildOwnerAndRepositoryFromUrlFromNupkg(PackageFile packageFile, bool subdomainIsolation = true)
         {
             var manifest = ReadNupkgManifest(packageFile.FilenameAbsolutePath);
             
-            return BuildOwnerAndRepositoryFromUrl(packageFile, manifest.Metadata.Repository?.Url);
+            return BuildOwnerAndRepositoryFromUrl(packageFile, manifest.Metadata.Repository?.Url, subdomainIsolation);
         }
 
-        public static PackageFile BuildPackageFile(string filename, string repositoryUrl)
+        public static PackageFile BuildPackageFile(string filename, string repositoryUrl, bool subdomainIsolation = true)
         {
             var packageFile = new PackageFile
             {
@@ -96,7 +97,7 @@ namespace GprTool
                 FilenameAbsolutePath = Path.GetFullPath(filename)
             };
 
-            BuildOwnerAndRepositoryFromUrl(packageFile, repositoryUrl);
+            BuildOwnerAndRepositoryFromUrl(packageFile, repositoryUrl, subdomainIsolation);
 
             return packageFile;
         }
