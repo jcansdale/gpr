@@ -442,7 +442,7 @@ namespace GprTool
             packageFiles.AddRange(
                 currentDirectory
                     .GetFilesByGlobPatterns(GlobPatterns, out var glob)
-                    .Select(x => NuGetUtilities.BuildPackageFile(x, RepositoryUrl)));
+                    .Select(x => NuGetUtilities.BuildPackageFile(x, RepositoryUrl, SubdomainIsolation)));
 
             if (!packageFiles.Any())
             {
@@ -462,7 +462,7 @@ namespace GprTool
 
                 if (RepositoryUrl == null)
                 {
-                    if (!NuGetUtilities.BuildOwnerAndRepositoryFromUrlFromNupkg(packageFile))
+                    if (!NuGetUtilities.BuildOwnerAndRepositoryFromUrlFromNupkg(packageFile, SubdomainIsolation))
                     {
                         Console.WriteLine("Could not build owner and repository for provided package");
                         return 1;
@@ -471,7 +471,7 @@ namespace GprTool
                 else
                 {
 
-                    if (!NuGetUtilities.BuildOwnerAndRepositoryFromUrl(packageFile, RepositoryUrl))
+                    if (!NuGetUtilities.BuildOwnerAndRepositoryFromUrl(packageFile, RepositoryUrl, SubdomainIsolation))
                     {
                         Console.WriteLine("Could not build owner and repository for provided package and repository url");
                         return 1;
@@ -618,6 +618,9 @@ namespace GprTool
 
         [Option("--retries", Description = "The number of retries in case of intermittent connection issue. Default value is 3. Set to 0 if you want to disable automatic retry.")]
         public int Retries { get; set; } = 3;
+
+        [Option("--subdomain-isolation", Description = "Subdomain isolation for GitHub Enterprise Server appliance. Default value is true.")]
+        public bool SubdomainIsolation { get; set; } = true;
     }
 
     [Command(Description = "View package details")]
