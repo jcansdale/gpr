@@ -544,69 +544,61 @@ namespace GprTool
             static async Task<IRestResponse> UploadPackageAsyncImpl(PackageFile packageFile, MemoryStream packageStream, string token,
                 CancellationToken cancellationToken)
             {
-                try
+                if (packageFile == null) throw new ArgumentNullException(nameof(packageFile));
+                if (packageStream == null) throw new ArgumentNullException(nameof(packageStream));
+
+                var client = WithRestClient($"https://{packageFile.NugetPackageEndpoint}/{packageFile.Owner}/",
+                    x =>
+                    {
+                        x.Authenticator = new HttpBasicAuthenticator(user, token);
+                    });
+
+                var request = new RestRequest(Method.PUT);
+
+                packageStream.Seek(0, SeekOrigin.Begin);
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                request.AddFile("package", packageStream.CopyTo, packageFile.Filename, packageStream.Length);
+
+                Console.WriteLine($"[{packageFile.Filename}]: Uploading package.");
+
+                var response = await client.ExecuteAsync(request, cancellationToken);
+
+                packageFile.IsUploaded = response.StatusCode == HttpStatusCode.OK;
+
+                if (packageFile.IsUploaded)
                 {
-                    if (packageFile == null) throw new ArgumentNullException(nameof(packageFile));
-                    if (packageStream == null) throw new ArgumentNullException(nameof(packageStream));
-
-                    var client = WithRestClient($"https://{packageFile.NugetPackageEndpoint}/{packageFile.Owner}/",
-                        x =>
-                        {
-                            x.Authenticator = new HttpBasicAuthenticator(user, token);
-                        });
-
-                    var request = new RestRequest(Method.PUT);
-
-                    packageStream.Seek(0, SeekOrigin.Begin);
-
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    request.AddFile("package", packageStream.CopyTo, packageFile.Filename, packageStream.Length);
-
-                    Console.WriteLine($"[{packageFile.Filename}]: Uploading package.");
-
-                    var response = await client.ExecuteAsync(request, cancellationToken);
-
-                    packageFile.IsUploaded = response.StatusCode == HttpStatusCode.OK;
-
-                    if (packageFile.IsUploaded)
-                    {
-                        Console.WriteLine($"[{packageFile.Filename}]: {response.Content}");
-                        return response;
-                    }
-
-                    if (FindWarning(response) is { } warning)
-                    {
-                        Console.WriteLine($"[{packageFile.Filename}]: {warning}");
-                        return response;
-                    }
-
-                    if (response.ResponseStatus == ResponseStatus.Error)
-                    {
-                        Console.WriteLine($"[{packageFile.Filename}]: {response.ErrorMessage}");
-                        return response;
-                    }
-
-                    if (response.StatusCode == HttpStatusCode.NotFound)
-                    {
-                        Console.WriteLine($"[{packageFile.Filename}]: {response.StatusDescription}");
-                        Console.WriteLine($"[{packageFile.Filename}]: Check that '{packageFile.RepositoryUrl}' exists");
-                        return response;
-                    }
-
-                    Console.WriteLine($"[{packageFile.Filename}]: {response.StatusDescription}");
-                    foreach (var header in response.Headers)
-                    {
-                        Console.WriteLine($"[{packageFile.Filename}]: {header.Name}: {header.Value}");
-                    }
-
+                    Console.WriteLine($"[{packageFile.Filename}]: {response.Content}");
                     return response;
                 }
-                catch(Exception e)
+
+                if (FindWarning(response) is { } warning)
                 {
-                    Console.WriteLine(e.Message);
-                    throw;
+                    Console.WriteLine($"[{packageFile.Filename}]: {warning}");
+                    return response;
                 }
+
+                if (response.ResponseStatus == ResponseStatus.Error)
+                {
+                    Console.WriteLine($"[{packageFile.Filename}]: {response.ErrorMessage}");
+                    return response;
+                }
+
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    Console.WriteLine($"[{packageFile.Filename}]: {response.StatusDescription}");
+                    Console.WriteLine($"[{packageFile.Filename}]: Check that '{packageFile.RepositoryUrl}' exists");
+                    return response;
+                }
+
+                Console.WriteLine($"[{packageFile.Filename}]: {response.StatusDescription}");
+                foreach (var header in response.Headers)
+                {
+                    Console.WriteLine($"[{packageFile.Filename}]: {header.Name}: {header.Value}");
+                }
+
+                return response;
             }
 
             return packageFiles.All(x => x.IsUploaded) ? 0 : 1;
