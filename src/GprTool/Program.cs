@@ -442,7 +442,7 @@ namespace GprTool
             packageFiles.AddRange(
                 currentDirectory
                     .GetFilesByGlobPatterns(GlobPatterns, out var glob)
-                    .Select(x => NuGetUtilities.BuildPackageFile(x, RepositoryUrl, SubdomainIsolation)));
+                    .Select(x => NuGetUtilities.BuildPackageFile(x, RepositoryUrl, !SubdomainIsolationOff)));
 
             if (!packageFiles.Any())
             {
@@ -462,7 +462,7 @@ namespace GprTool
 
                 if (RepositoryUrl == null)
                 {
-                    if (!NuGetUtilities.BuildOwnerAndRepositoryFromUrlFromNupkg(packageFile, SubdomainIsolation))
+                    if (!NuGetUtilities.BuildOwnerAndRepositoryFromUrlFromNupkg(packageFile, !SubdomainIsolationOff))
                     {
                         Console.WriteLine("Could not build owner and repository for provided package");
                         return 1;
@@ -471,7 +471,7 @@ namespace GprTool
                 else
                 {
 
-                    if (!NuGetUtilities.BuildOwnerAndRepositoryFromUrl(packageFile, RepositoryUrl, SubdomainIsolation))
+                    if (!NuGetUtilities.BuildOwnerAndRepositoryFromUrl(packageFile, RepositoryUrl, !SubdomainIsolationOff))
                     {
                         Console.WriteLine("Could not build owner and repository for provided package and repository url");
                         return 1;
@@ -625,8 +625,9 @@ namespace GprTool
         [Option("--retries", Description = "The number of retries in case of intermittent connection issue. Default value is 3. Set to 0 if you want to disable automatic retry.")]
         public int Retries { get; set; } = 3;
 
-        [Option("--subdomain-isolation", Description = "Subdomain isolation for GitHub Enterprise Server appliance. Default value is true.")]
-        public bool SubdomainIsolation { get; set; } = true;
+        [Option("--subdomain-isolation-off", Description = "Subdomain isolation is off for GitHub Enterprise Server appliance.")]
+        protected bool SubdomainIsolationOff { get; set; }
+
     }
 
     [Command(Description = "View package details")]
