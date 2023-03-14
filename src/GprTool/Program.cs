@@ -450,7 +450,8 @@ namespace GprTool
                 return 1;
             }
 
-            Console.WriteLine($"Found {packageFiles.Count} package{(packageFiles.Count > 1 ? "s" : string.Empty)}.");
+            Console.WriteLine($"Found {packageFiles.Count} package{(packageFiles.Count > 1 ? "s" : string.Empty)}:");
+            foreach (var packageFile in packageFiles) Console.WriteLine($"{packageFile.FilenameAbsolutePath}");
 
             foreach (var packageFile in packageFiles)
             {
