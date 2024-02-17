@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
-    <RollForward>LatestMajor</RollForward>
+    <RollForward>Major</RollForward>
     <Authors>Jamie Cansdale</Authors>
     <Company>Mutant Design Limited</Company>
     <Product>GprTool</Product>
