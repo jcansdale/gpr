@@ -1,8 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using DotNet.Globbing;
 
 namespace GprTool
 {
@@ -44,7 +43,11 @@ namespace GprTool
                 ? Glob.Parse(globPattern)
                 : Glob.Parse(baseDirectoryGlobPattern);
 
-            var basePathFromGlob = Path.GetDirectoryName(glob.BuildBasePathFromGlob(baseDirectory));
+            var basePathFromGlob = glob.BuildBasePathFromGlob(baseDirectory);
+            if (File.Exists(basePathFromGlob))
+            {
+                basePathFromGlob = Path.GetDirectoryName(basePathFromGlob);
+            }
 
             outGlob = glob;
 

@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using GprTool;
 using NUnit.Framework;
-using McMaster.Extensions.CommandLineUtils;
 using NSubstitute;
 using System.Security.Cryptography;
 
