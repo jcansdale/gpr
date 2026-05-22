@@ -63,5 +63,22 @@ namespace GprTool
 
             return null;
         }
+
+        public static string GetOptionalAttributeValue([NotNull] this XElement xElement, [NotNull] XName name, bool ignoreCase = true)
+        {
+            if (xElement == null) throw new ArgumentNullException(nameof(xElement));
+            if (name == null) throw new ArgumentNullException(nameof(name));
+
+            var comparison = ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            foreach (var attribute in xElement.Attributes())
+            {
+                if (string.Equals(attribute.Name.LocalName, name.LocalName, comparison))
+                {
+                    return attribute.Value;
+                }
+            }
+
+            return null;
+        }
     }
 }

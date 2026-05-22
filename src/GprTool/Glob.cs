@@ -52,8 +52,17 @@ namespace GprTool
                     var isDoubleStar = index + 1 < pattern.Length && pattern[index + 1] == '*';
                     if (isDoubleStar)
                     {
-                        builder.Append(".*");
-                        index++;
+                        var isDirectoryWildcard = index + 2 < pattern.Length && pattern[index + 2] == '/';
+                        if (isDirectoryWildcard)
+                        {
+                            builder.Append("(?:.*/)?");
+                            index += 2;
+                        }
+                        else
+                        {
+                            builder.Append(".*");
+                            index++;
+                        }
                     }
                     else
                     {

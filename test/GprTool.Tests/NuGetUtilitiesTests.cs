@@ -305,12 +305,16 @@ namespace GprTool.Tests
                 {
                     using var archive = ZipFile.Open(NupkgFilename, ZipArchiveMode.Create);
                     var nuspecEntry = archive.CreateEntry("test.nuspec");
-                    using var writer = new StreamWriter(nuspecEntry.Open(), new UTF8Encoding(false));
-                    writer.Write(BuildNuspec());
+                    using (var writer = new StreamWriter(nuspecEntry.Open(), new UTF8Encoding(false)))
+                    {
+                        writer.Write(BuildNuspec());
+                    }
 
                     var libEntry = archive.CreateEntry("lib/netstandard2.0/test.dll");
-                    using var libWriter = new StreamWriter(libEntry.Open(), new UTF8Encoding(false));
-                    libWriter.Write(string.Empty);
+                    using (var libWriter = new StreamWriter(libEntry.Open(), new UTF8Encoding(false)))
+                    {
+                        libWriter.Write(string.Empty);
+                    }
                 }
 
                 string BuildNuspec()
