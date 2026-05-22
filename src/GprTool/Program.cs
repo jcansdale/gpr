@@ -187,13 +187,23 @@ namespace GprTool
 
                 if (TryConsumeOptionValue(options, out var concurrency, "-c", "--concurrency"))
                 {
-                    command.Concurrency = int.Parse(concurrency);
+                    if (!int.TryParse(concurrency, out var parsedConcurrency))
+                    {
+                        throw new ApplicationException($"Invalid value for --concurrency option: {concurrency}");
+                    }
+
+                    command.Concurrency = parsedConcurrency;
                     return true;
                 }
 
                 if (TryConsumeOptionValue(options, out var retries, "--retries"))
                 {
-                    command.Retries = int.Parse(retries);
+                    if (!int.TryParse(retries, out var parsedRetries))
+                    {
+                        throw new ApplicationException($"Invalid value for --retries option: {retries}");
+                    }
+
+                    command.Retries = parsedRetries;
                     return true;
                 }
 
@@ -908,7 +918,7 @@ namespace GprTool
         protected static HttpClient CreateHttpClient()
         {
             var client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("gpr", Program.AssemblyInformationalVersion));
+            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(Program.AssemblyProduct, Program.AssemblyInformationalVersion));
             return client;
         }
 

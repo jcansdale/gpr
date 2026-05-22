@@ -155,7 +155,7 @@ namespace GprTool
 
             using var tmpDirectory = new DisposableDirectory(rewrittenPath);
 
-            ZipFile.ExtractToDirectory(packageFile.FilenameAbsolutePath, tmpDirectory);
+            ZipFile.ExtractToDirectory(packageFile.FilenameAbsolutePath, tmpDirectory, overwriteFiles: true);
 
             var nuspecFilename = Directory
                 .EnumerateFiles(tmpDirectory, "*.nuspec", SearchOption.AllDirectories)

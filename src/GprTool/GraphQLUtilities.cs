@@ -280,7 +280,7 @@ namespace GprTool
         {
             var client = new HttpClient();
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", token);
-            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("gpr", Program.AssemblyInformationalVersion));
+            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue(Program.AssemblyProduct, Program.AssemblyInformationalVersion));
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             return client;
         }
