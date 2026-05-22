@@ -1,11 +1,10 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Xml;
-using NuGet.Packaging;
-using NuGet.Packaging.Core;
-using NuGet.Versioning;
+using System.Xml.Linq;
 using NUnit.Framework;
 
 namespace GprTool.Tests
@@ -17,55 +16,37 @@ namespace GprTool.Tests
         {
             public string TmpDirectoryPath => Path.Combine(Directory.GetCurrentDirectory(), Guid.NewGuid().ToString("N"));
 
-            const string NuspecXml = @"<?xml version=""1.0"" encoding=""utf-8""?>
-<package xmlns=""http://schemas.microsoft.com/packaging/2013/05/nuspecContext.xsd"">
-  <metadata>
-    <id>test</id>
-    <version>1.0.0</version>
-    <authors>abc123</authors>
-    <description>abc123</description>
-    <dependencies>
-      <group targetFramework="".NETStandard2.0"">
-        <dependency id=""test"" version=""0.0.0"" />
-      </group>
-    </dependencies>
-  </metadata>
-</package>";
-
             [Test]
             public void AddClearTextPassword()
             {
                 var xmlDoc = new XmlDocument();
-                var source = "SOURCE";
-                var expectToken = "TOKEN";
+                const string source = "SOURCE";
+                const string expectedToken = "TOKEN";
 
-                NuGetUtilities.SetApiKey(xmlDoc, expectToken, source);
+                NuGetUtilities.SetApiKey(xmlDoc, expectedToken, source);
 
                 var passwordXpath = $"/configuration/packageSourceCredentials/{source}/add[@key='ClearTextPassword']/@value";
                 var token = xmlDoc.SelectSingleNode(passwordXpath)?.Value;
-                Assert.That(token, Is.EqualTo(expectToken));
+                Assert.That(token, Is.EqualTo(expectedToken));
             }
 
             [Test]
             public void AddUsername()
             {
                 var xmlDoc = new XmlDocument();
-                var source = "SOURCE";
-                var token = "TOKEN";
-                var expectUsername = "PersonalAccessToken";
+                const string source = "SOURCE";
 
-                NuGetUtilities.SetApiKey(xmlDoc, token, source);
+                NuGetUtilities.SetApiKey(xmlDoc, "TOKEN", source);
 
                 var usernameXpath = $"/configuration/packageSourceCredentials/{source}/add[@key='Username']/@value";
                 var username = xmlDoc.SelectSingleNode(usernameXpath)?.Value;
-                Assert.That(username, Is.EqualTo(expectUsername));
+                Assert.That(username, Is.EqualTo("PersonalAccessToken"));
             }
 
             [Test]
             public void PreserveExistingPackageSources()
             {
-                var xml =
-                    @"<?xml version=""1.0"" encoding=""utf-8""?>
+                const string xml = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <configuration>
     <packageSources>
         <clear />
@@ -76,16 +57,15 @@ namespace GprTool.Tests
 
                 NuGetUtilities.SetApiKey(xmlDoc, "TOKEN", "SOURCE");
 
-                var xpath = $"/configuration/packageSources/clear";
-                var element = xmlDoc.SelectSingleNode(xpath);
+                var element = xmlDoc.SelectSingleNode("/configuration/packageSources/clear");
                 Assert.That(element, Is.Not.Null);
             }
 
             [Test]
             public void PreserveExistingPackageSourceCredentials()
             {
-                var existingSource = "EXISTING_SOURCE";
-                var newSource = "NEW_SOURCE";
+                const string existingSource = "EXISTING_SOURCE";
+                const string newSource = "NEW_SOURCE";
                 var xml =
                     $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <configuration>
@@ -101,41 +81,34 @@ namespace GprTool.Tests
 
                 NuGetUtilities.SetApiKey(xmlDoc, "TOKEN", newSource);
 
-                var existingElement = xmlDoc.SelectSingleNode($"/configuration/packageSourceCredentials/{existingSource}");
-                Assert.That(existingElement, Is.Not.Null);
-                var newElement = xmlDoc.SelectSingleNode($"/configuration/packageSourceCredentials/{newSource}");
-                Assert.That(newElement, Is.Not.Null);
-                var packageSourceCredentialsElements = xmlDoc.SelectNodes($"/configuration/packageSourceCredentials");
-                Assert.That(packageSourceCredentialsElements.Count, Is.EqualTo(1));
+                Assert.That(xmlDoc.SelectSingleNode($"/configuration/packageSourceCredentials/{existingSource}"), Is.Not.Null);
+                Assert.That(xmlDoc.SelectSingleNode($"/configuration/packageSourceCredentials/{newSource}"), Is.Not.Null);
+                Assert.That(xmlDoc.SelectNodes("/configuration/packageSourceCredentials")?.Count, Is.EqualTo(1));
             }
 
             [Test]
             public void UpdatePackageSourceCredentials()
             {
-                var existingSource = "EXISTING_SOURCE";
-                var oldToken = "OLD_TOKEN";
-                var newToken = "NEW_TOKEN";
+                const string existingSource = "EXISTING_SOURCE";
                 var xml =
                     $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <configuration>
   <packageSourceCredentials>
     <{existingSource}>
       <add key=""Username"" value=""USERNAME"" />
-      <add key=""ClearTextPassword"" value=""{oldToken}"" />
+      <add key=""ClearTextPassword"" value=""OLD_TOKEN"" />
     </{existingSource}>
   </packageSourceCredentials>
 </configuration>";
                 var xmlDoc = new XmlDocument();
                 xmlDoc.LoadXml(xml);
 
-                NuGetUtilities.SetApiKey(xmlDoc, newToken, existingSource);
+                NuGetUtilities.SetApiKey(xmlDoc, "NEW_TOKEN", existingSource);
 
                 var passwordAttribute = xmlDoc.SelectSingleNode($"/configuration/packageSourceCredentials/{existingSource}/add[@key='ClearTextPassword']/@value");
-                Assert.That(passwordAttribute?.Value, Is.EqualTo(newToken));
-                var addElements = xmlDoc.SelectNodes($"/configuration/packageSourceCredentials/{existingSource}/add");
-                Assert.That(addElements.Count, Is.EqualTo(2));
-                var packageSourceCredentialsElements = xmlDoc.SelectNodes($"/configuration/packageSourceCredentials/*");
-                Assert.That(packageSourceCredentialsElements.Count, Is.EqualTo(1));
+                Assert.That(passwordAttribute?.Value, Is.EqualTo("NEW_TOKEN"));
+                Assert.That(xmlDoc.SelectNodes($"/configuration/packageSourceCredentials/{existingSource}/add")?.Count, Is.EqualTo(2));
+                Assert.That(xmlDoc.SelectNodes("/configuration/packageSourceCredentials/*")?.Count, Is.EqualTo(1));
             }
 
             [TestCase(null, null, null, null)]
@@ -149,22 +122,13 @@ namespace GprTool.Tests
             [TestCase("  https://github.com/jcansdale/gpr ", "jcansdale", "gpr", "https://github.com/jcansdale/gpr", Description = "Whitespace")]
             public void BuildPackageFile(string repositoryUrl, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
             {
-                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
-                {
-                    manifest.Metadata.Repository = new RepositoryMetadata
-                    {
-                        Url = repositoryUrl,
-                        Type = "git"
-                    };
-                }));
-
+                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, "1.0.0", repositoryUrl);
                 packageBuilderContext.Build();
 
                 var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, repositoryUrl);
                 packageFile.IsNuspecRewritten = true;
 
                 Assert.That(packageFile, Is.Not.Null);
-                Assert.That(packageFile.Filename, Is.EqualTo("test.1.0.0.nupkg"));
                 Assert.That(packageFile.Filename, Is.EqualTo("test.1.0.0.nupkg"));
                 Assert.That(packageFile.FilenameAbsolutePath, Is.EqualTo(packageBuilderContext.NupkgFilename));
 
@@ -178,7 +142,6 @@ namespace GprTool.Tests
 
                 Assert.That(packageFile.Owner, Is.EqualTo(expectedOwner));
                 Assert.That(packageFile.RepositoryName, Is.EqualTo(expectedRepositoryName));
-                Assert.That(packageFile.RepositoryUrl, Is.Not.Null);
                 Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
             }
 
@@ -193,15 +156,7 @@ namespace GprTool.Tests
             [TestCase("https://foo.bar.com/ritchxu/gpr", "ritchxu", "gpr", "https://foo.bar.com/ritchxu/gpr")]
             public void BuildOwnerAndRepositoryFromUrlFromNupkg(string repositoryUrl, string expectedOwner, string expectedRepositoryName, string expectedGithubRepositoryUrl)
             {
-                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
-                {
-                    manifest.Metadata.Repository = new RepositoryMetadata
-                    {
-                        Url = repositoryUrl,
-                        Type = "git"
-                    };
-                }));
-                
+                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, "1.0.0", repositoryUrl);
                 packageBuilderContext.Build();
 
                 var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, null);
@@ -229,7 +184,6 @@ namespace GprTool.Tests
                 var packageFile = new PackageFile();
 
                 Assert.That(NuGetUtilities.BuildOwnerAndRepositoryFromUrl(packageFile, repositoryUrl, subdomainIsolation), Is.EqualTo(expectedResult));
-
                 Assert.That(packageFile.Owner, Is.EqualTo(expectedOwner));
                 Assert.That(packageFile.RepositoryName, Is.EqualTo(expectedRepositoryName));
                 Assert.That(packageFile.RepositoryUrl, Is.EqualTo(expectedGithubRepositoryUrl));
@@ -239,23 +193,14 @@ namespace GprTool.Tests
             [Test]
             public void ReadNupkgManifest()
             {
-                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
-                {
-                    manifest.Metadata.Version = new NuGetVersion("1.0.0");
-                    manifest.Metadata.Repository = new RepositoryMetadata
-                    {
-                        Url = "https://github.com/jcansdale/gpr",
-                        Type = "git"
-                    };
-                }));
-
+                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, "1.0.0", "https://github.com/jcansdale/gpr");
                 packageBuilderContext.Build();
 
                 var manifest = NuGetUtilities.ReadNupkgManifest(packageBuilderContext.NupkgFilename);
                 Assert.That(manifest, Is.Not.Null);
-                Assert.That(manifest.Metadata.Version, Is.EqualTo(packageBuilderContext.NuspecContext.Manifest.Metadata.Version));
-                Assert.That(manifest.Metadata.Repository, Is.Not.Null);
-                Assert.That(manifest.Metadata.Repository.Url, Is.EqualTo(packageBuilderContext.NuspecContext.Manifest.Metadata.Repository.Url));
+                Assert.That(manifest.Metadata.Id, Is.EqualTo("test"));
+                Assert.That(manifest.Metadata.Version, Is.EqualTo(PackageVersion.Parse("1.0.0")));
+                Assert.That(manifest.Metadata.Repository?.Url, Is.EqualTo("https://github.com/jcansdale/gpr"));
             }
 
             [TestCase("1.0.0", "1.0.0", false)]
@@ -263,24 +208,12 @@ namespace GprTool.Tests
             public void ShouldRewriteNupkg_Version(string currentVersion, string updatedVersion, bool shouldUpdateVersion)
             {
                 const string repositoryUrl = "https://github.com/jcansdale/gpr";
-
-                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
-                {
-                    manifest.Metadata.Version = new NuGetVersion(currentVersion);
-                    manifest.Metadata.Repository = new RepositoryMetadata
-                    {
-                        Url = repositoryUrl,
-                        Type = "git"
-                    };
-                }));
-
+                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, currentVersion, repositoryUrl);
                 packageBuilderContext.Build();
 
                 var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, repositoryUrl);
 
-                Assert.That(
-                    NuGetUtilities.ShouldRewriteNupkg(packageFile,
-                        NuGetVersion.Parse(updatedVersion)), Is.EqualTo(shouldUpdateVersion));
+                Assert.That(NuGetUtilities.ShouldRewriteNupkg(packageFile, PackageVersion.Parse(updatedVersion)), Is.EqualTo(shouldUpdateVersion));
             }
 
             [TestCase("https://github.com/owner/repo.git", "https://github.com/owner/repo.git", false, Description = "Equals")]
@@ -290,21 +223,7 @@ namespace GprTool.Tests
             [TestCase("https://google.com", "https://github.com/owner/repo.git", true)]
             public void ShouldRewriteNupkg_RepositoryUrl(string currentRepositoryUrl, string updatedRepositoryUrl, bool shouldUpdateRepositoryUrl)
             {
-                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
-                {
-                    if (currentRepositoryUrl == null)
-                    {
-                        manifest.Metadata.Repository = null;
-                        return;
-                    }
-
-                    manifest.Metadata.Repository = new RepositoryMetadata
-                    {
-                        Url = currentRepositoryUrl,
-                        Type = "git"
-                    };
-                }));
-
+                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, "1.0.0", currentRepositoryUrl);
                 packageBuilderContext.Build();
 
                 var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, updatedRepositoryUrl);
@@ -317,140 +236,110 @@ namespace GprTool.Tests
             public void ShouldRewriteNupkg_Ignores_RepositoryType(string repositoryType)
             {
                 const string currentRepositoryUrl = "https://github.com/jcansdale/gpr";
-
-                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(manifest =>
-                {
-                    manifest.Metadata.Repository = new RepositoryMetadata
-                    {
-                        Url = currentRepositoryUrl,
-                        Type = repositoryType
-                    };
-                }));
-
+                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, "1.0.0", currentRepositoryUrl, repositoryType);
                 packageBuilderContext.Build();
 
                 var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, currentRepositoryUrl);
 
-                Assert.That(NuGetUtilities.ShouldRewriteNupkg(packageFile), Is.EqualTo(false));
+                Assert.That(NuGetUtilities.ShouldRewriteNupkg(packageFile), Is.False);
             }
 
             [TestCase("https://github.com/owner/repo.git", "https://github.com/owner/repo.git")]
             [TestCase("https://github.com/owner/repo", "https://github.com/owner/repo")]
             public void RewriteNuspec(string repositoryUrl, string expectedRepositoryUrl)
             {
-                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(
-                    manifest =>
-                    {
-                        manifest.Metadata.Repository = null;
-                    }));
+                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, "1.0.0", null);
                 packageBuilderContext.Build();
 
                 var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, repositoryUrl);
 
-                NuGetUtilities.RewriteNupkg(packageFile, NuGetVersion.Parse("2.0.0"));
+                NuGetUtilities.RewriteNupkg(packageFile, PackageVersion.Parse("2.0.0"));
 
-                using var rewrittenNupkgPackageReader = new PackageArchiveReader(File.OpenRead(packageFile.FilenameAbsolutePath));
+                var manifest = NuGetUtilities.ReadNupkgManifest(packageFile.FilenameAbsolutePath);
 
-                var rewrittenNupkgPackageIdentity = rewrittenNupkgPackageReader.GetIdentity();
-                var rewrittenNupkgRepositoryMetadata = rewrittenNupkgPackageReader.NuspecReader.GetRepositoryMetadata();
-
-                Assert.That(rewrittenNupkgPackageIdentity, Is.Not.Null);
-                Assert.That(rewrittenNupkgPackageIdentity.Id, Is.EqualTo("test"));
-                Assert.That(rewrittenNupkgPackageIdentity.Version, Is.EqualTo(NuGetVersion.Parse("2.0.0")));
-                Assert.That(rewrittenNupkgRepositoryMetadata, Is.Not.Null);
-                Assert.That(rewrittenNupkgRepositoryMetadata.Url, Is.EqualTo(expectedRepositoryUrl));
-                Assert.That(rewrittenNupkgRepositoryMetadata.Type, Is.EqualTo("git"));
+                Assert.That(manifest.Metadata.Id, Is.EqualTo("test"));
+                Assert.That(manifest.Metadata.Version, Is.EqualTo(PackageVersion.Parse("2.0.0")));
+                Assert.That(manifest.Metadata.Repository?.Url, Is.EqualTo(expectedRepositoryUrl));
+                Assert.That(manifest.Metadata.Repository?.Type, Is.EqualTo("git"));
             }
 
             [Test]
             public void RewriteNuspec_Overwrites_Existing_Repository_Url()
             {
-                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, new NuspecContext(
-                    manifest =>
-                    {
-                        manifest.Metadata.Repository = new RepositoryMetadata
-                        {
-                            Url = "https://google.com", 
-                            Type = "google"
-                        };
-                    }));
+                using var packageBuilderContext = new PackageBuilderContext(TmpDirectoryPath, "1.0.0", "https://google.com", "google");
                 packageBuilderContext.Build();
 
-                var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename,  "https://github.com/owner/repo");
+                var packageFile = NuGetUtilities.BuildPackageFile(packageBuilderContext.NupkgFilename, "https://github.com/owner/repo");
 
-                NuGetUtilities.RewriteNupkg(packageFile, NuGetVersion.Parse("2.0.0"));
+                NuGetUtilities.RewriteNupkg(packageFile, PackageVersion.Parse("2.0.0"));
 
-                using var rewrittenNupkgPackageReader = new PackageArchiveReader(File.OpenRead(packageFile.FilenameAbsolutePath));
+                var manifest = NuGetUtilities.ReadNupkgManifest(packageFile.FilenameAbsolutePath);
 
-                var rewrittenNupkgPackageIdentity = rewrittenNupkgPackageReader.GetIdentity();
-                var rewrittenNupkgRepositoryMetadata = rewrittenNupkgPackageReader.NuspecReader.GetRepositoryMetadata();
-
-                Assert.That(rewrittenNupkgPackageIdentity, Is.Not.Null);
-                Assert.That(rewrittenNupkgPackageIdentity.Id, Is.EqualTo("test"));
-                Assert.That(rewrittenNupkgPackageIdentity.Version, Is.EqualTo(NuGetVersion.Parse("2.0.0")));
-                Assert.That(rewrittenNupkgRepositoryMetadata, Is.Not.Null);
-                Assert.That(rewrittenNupkgRepositoryMetadata.Url, Is.EqualTo("https://github.com/owner/repo"));
-                Assert.That(rewrittenNupkgRepositoryMetadata.Type, Is.EqualTo("git"));
+                Assert.That(manifest.Metadata.Id, Is.EqualTo("test"));
+                Assert.That(manifest.Metadata.Version, Is.EqualTo(PackageVersion.Parse("2.0.0")));
+                Assert.That(manifest.Metadata.Repository?.Url, Is.EqualTo("https://github.com/owner/repo"));
+                Assert.That(manifest.Metadata.Repository?.Type, Is.EqualTo("git"));
             }
 
-            [SuppressMessage("ReSharper", "MemberCanBePrivate.Local")]
-            class NuspecContext : IDisposable
-            {
-                public Manifest Manifest { get; }
-                public MemoryStream ManifestStream { get; }
-
-                public NuspecContext(Action<Manifest> manifestBuilder = null)
-                {
-                    using var nuspecMemoryStream = new MemoryStream(Encoding.UTF8.GetBytes(NuspecXml));
-                    Manifest = Manifest.ReadFrom(nuspecMemoryStream, true);
-                    manifestBuilder?.Invoke(Manifest);
-                    ManifestStream = new MemoryStream();
-                    Manifest.Save(ManifestStream, true);
-                    ManifestStream.Seek(0, SeekOrigin.Begin);
-                }
-
-                public void Dispose()
-                {
-                    ManifestStream?.Dispose();
-                }
-            }
-
-            class PackageBuilderContext : IDisposable
+            sealed class PackageBuilderContext : IDisposable
             {
                 readonly DisposableDirectory _disposableDirectory;
 
                 public string WorkingDirectory => _disposableDirectory.WorkingDirectory;
                 public string Filename { get; }
                 public string NupkgFilename => Path.Combine(WorkingDirectory, Filename);
-                public NuspecContext NuspecContext { get; }
+                readonly string _version;
+                readonly string _repositoryUrl;
+                readonly string _repositoryType;
 
-                public PackageBuilderContext(string workingDirectory, NuspecContext nuspecContext)
+                public PackageBuilderContext(string workingDirectory, string version, string repositoryUrl, string repositoryType = "git")
                 {
-                    if (workingDirectory == null) throw new ArgumentNullException(nameof(workingDirectory));
-                    if (nuspecContext == null) throw new ArgumentNullException(nameof(nuspecContext));
                     _disposableDirectory = new DisposableDirectory(workingDirectory);
-
-                    Filename = $"{nuspecContext.Manifest.Metadata.Id}.{nuspecContext.Manifest.Metadata.Version}.nupkg";
-                    NuspecContext = nuspecContext;
+                    _version = version;
+                    _repositoryUrl = repositoryUrl;
+                    _repositoryType = repositoryType;
+                    Filename = $"test.{version}.nupkg";
                 }
 
-                public void Build(Action<PackageBuilder> builder = null)
+                public void Build()
                 {
-                    using var packageBuilderOutputStream = new MemoryStream();
+                    using var archive = ZipFile.Open(NupkgFilename, ZipArchiveMode.Create);
+                    var nuspecEntry = archive.CreateEntry("test.nuspec");
+                    using (var writer = new StreamWriter(nuspecEntry.Open(), new UTF8Encoding(false)))
+                    {
+                        writer.Write(BuildNuspec());
+                    }
 
-                    var nupkgPath = Path.Combine(WorkingDirectory, Filename);
-                    var packageBuilder = new PackageBuilder(NuspecContext.ManifestStream, WorkingDirectory, s => throw new NotImplementedException());
+                    var libEntry = archive.CreateEntry("lib/netstandard2.0/test.dll");
+                    using (var libWriter = new StreamWriter(libEntry.Open(), new UTF8Encoding(false)))
+                    {
+                        libWriter.Write(string.Empty);
+                    }
+                }
 
-                    builder?.Invoke(packageBuilder);
+                string BuildNuspec()
+                {
+                    var package = new XElement("package",
+                        new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd"),
+                        new XElement("metadata",
+                            new XElement("id", "test"),
+                            new XElement("version", _version),
+                            new XElement("authors", "abc123"),
+                            new XElement("description", "abc123")));
 
-                    packageBuilder.Save(packageBuilderOutputStream);
+                    if (_repositoryUrl != null)
+                    {
+                        package.Element("metadata")?.Add(new XElement("repository",
+                            new XAttribute("url", _repositoryUrl),
+                            new XAttribute("type", _repositoryType)));
+                    }
 
-                    File.WriteAllBytes(nupkgPath, packageBuilderOutputStream.ToArray());
+                    return new XDocument(new XDeclaration("1.0", "utf-8", null), package).ToString();
                 }
 
                 public void Dispose()
                 {
-                    NuspecContext.Dispose();
+                    _disposableDirectory.Dispose();
                 }
             }
         }

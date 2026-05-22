@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Text.RegularExpressions;
+using System.Text;
 using System.Xml;
 using System.Xml.Linq;
-using NuGet.Packaging;
-using NuGet.Packaging.Core;
-using NuGet.Versioning;
 
 namespace GprTool
 {
@@ -50,7 +46,7 @@ namespace GprTool
             {
                 repositoryUri = new UriBuilder(repositoryUri)
                 {
-                    Scheme = Uri.UriSchemeHttps, 
+                    Scheme = Uri.UriSchemeHttps,
                     Port = -1
                 }.Uri;
             }
@@ -76,16 +72,15 @@ namespace GprTool
             }
             else
             {
-                packageFile.NugetPackageEndpoint = $"nuget.pkg.github.com";
+                packageFile.NugetPackageEndpoint = "nuget.pkg.github.com";
             }
-            
+
             return true;
         }
 
         public static bool BuildOwnerAndRepositoryFromUrlFromNupkg(PackageFile packageFile, bool subdomainIsolation = true)
         {
             var manifest = ReadNupkgManifest(packageFile.FilenameAbsolutePath);
-            
             return BuildOwnerAndRepositoryFromUrl(packageFile, manifest.Metadata.Repository?.Url, subdomainIsolation);
         }
 
@@ -102,112 +97,114 @@ namespace GprTool
             return packageFile;
         }
 
-        public static Manifest ReadNupkgManifest(string nupkgPath)
+        public static PackageManifest ReadNupkgManifest(string nupkgPath)
         {
-            var metadata = new ManifestMetadata();
-
-            using var packageArchiveReader = new PackageArchiveReader(
-                nupkgPath.ReadSharedToStream(), false);
-
-            var nuspecXDocument = packageArchiveReader.NuspecReader.Xml;
-            var packageXElement = nuspecXDocument.Single("package");
-            var metadataXElement = packageXElement.Single("metadata");
-
-            if (metadataXElement.Single("version") is { } versionXElement)
+            using var archive = ZipFile.OpenRead(nupkgPath);
+            var nuspecEntry = archive.Entries.SingleOrDefault(entry =>
+                entry.FullName.EndsWith(".nuspec", StringComparison.OrdinalIgnoreCase));
+            if (nuspecEntry == null)
             {
-                metadata.Version = NuGetVersion.Parse(versionXElement.Value);
+                throw new InvalidOperationException($"Could not find a .nuspec entry in '{nupkgPath}'.");
             }
 
-            if (metadataXElement.SingleOrDefault("repository") is { } repositoryXElement)
+            using var stream = nuspecEntry.Open();
+            var document = XDocument.Load(stream);
+            var packageElement = document.Single("package");
+            var metadataElement = packageElement.Single("metadata");
+
+            var versionText = metadataElement.Single("version").Value;
+            var metadata = new ManifestMetadata
+            {
+                Id = metadataElement.Single("id").Value,
+                Version = PackageVersion.Parse(versionText)
+            };
+
+            if (metadataElement.SingleOrDefault("repository") is { } repositoryElement)
             {
                 metadata.Repository = new RepositoryMetadata
                 {
-                    Url = repositoryXElement.GetOptionalAttributeValue("url"),
-                    Type = repositoryXElement.GetOptionalAttributeValue("type")
+                    Url = repositoryElement.GetOptionalAttributeValue("url"),
+                    Type = repositoryElement.GetOptionalAttributeValue("type")
                 };
             }
 
-            return new Manifest(metadata);
+            return new PackageManifest(metadata);
         }
 
-        public static bool ShouldRewriteNupkg(PackageFile packageFile, NuGetVersion nuGetVersion = null)
+        public static bool ShouldRewriteNupkg(PackageFile packageFile, PackageVersion packageVersion = null)
         {
             if (packageFile == null) throw new ArgumentNullException(nameof(packageFile));
 
             var manifest = ReadNupkgManifest(packageFile.FilenameAbsolutePath);
 
-            if (nuGetVersion != null && !nuGetVersion.Equals(manifest.Metadata.Version))
+            if (packageVersion != null && !packageVersion.Equals(manifest.Metadata.Version))
             {
                 return true;
             }
-            
+
             return !string.Equals(packageFile.RepositoryUrl, manifest.Metadata.Repository?.Url, StringComparison.OrdinalIgnoreCase);
         }
 
-        public static void RewriteNupkg(PackageFile packageFile, NuGetVersion nuGetVersion = null)
+        public static void RewriteNupkg(PackageFile packageFile, PackageVersion packageVersion = null)
         {
             if (packageFile == null) throw new ArgumentNullException(nameof(packageFile));
-            
+
             var randomId = Guid.NewGuid().ToString("N");
-  
-            using var packageArchiveReader = new PackageArchiveReader(
-                packageFile.FilenameAbsolutePath.ReadSharedToStream(), false);
-            
-            var nuspecXDocument = packageArchiveReader.NuspecReader.Xml;
-            var packageXElement = nuspecXDocument.Single("package");
-            var metadataXElement = packageXElement.Single("metadata");
-            var packageId = packageXElement.Single("id").Value;
-            var versionXElement = metadataXElement.Single("version");
-            
-            if (nuGetVersion != null)
-            {
-                versionXElement.SetValue(nuGetVersion); 
-            }
-            else
-            {
-                nuGetVersion = NuGetVersion.Parse(versionXElement.Value);
-            }
-
-            var repositoryXElement = metadataXElement.SingleOrDefault("repository");
-            if (repositoryXElement == null)
-            {
-                repositoryXElement = new XElement("repository");
-                repositoryXElement.SetAttributeValue("url", packageFile.RepositoryUrl);
-                repositoryXElement.SetAttributeValue("type", "git");
-                metadataXElement.Add(repositoryXElement);
-            }
-            else
-            {
-                repositoryXElement.SetAttributeValue("url", packageFile.RepositoryUrl);
-                repositoryXElement.SetAttributeValue("type", "git");
-            }
-            
-            using var nuspecMemoryStream = new MemoryStream();
-            nuspecXDocument.Save(nuspecMemoryStream);
-            nuspecMemoryStream.Seek(0, SeekOrigin.Begin);
-
             var packageFileWorkingDirectoryAbsolutePath = Path.GetDirectoryName(packageFile.FilenameAbsolutePath);
-            var packageFileRewriteWorkingDirectory = Path.Combine(packageFileWorkingDirectoryAbsolutePath,
-                $"{packageId}.{nuGetVersion}_{randomId}");
+            var rewrittenPath = Path.Combine(packageFileWorkingDirectoryAbsolutePath, randomId);
 
-            using var tmpDirectory = new DisposableDirectory(packageFileRewriteWorkingDirectory);
+            using var tmpDirectory = new DisposableDirectory(rewrittenPath);
 
-            ZipFile.ExtractToDirectory(packageFile.FilenameAbsolutePath, tmpDirectory);
+            ZipFile.ExtractToDirectory(packageFile.FilenameAbsolutePath, tmpDirectory, overwriteFiles: true);
 
-            var nuspecDstFilename = Path.Combine(tmpDirectory, $"{packageId}.nuspec");
-            File.WriteAllBytes(nuspecDstFilename, nuspecMemoryStream.ToArray());
+            var nuspecFilename = Directory
+                .EnumerateFiles(tmpDirectory, "*.nuspec", SearchOption.AllDirectories)
+                .Single();
 
-            using var outputStream = new MemoryStream();
-            
-            var packageBuilder = new PackageBuilder(nuspecMemoryStream, tmpDirectory,
-                propertyProvider => throw new NotImplementedException());
-            packageBuilder.Save(outputStream);
+            var document = XDocument.Load(nuspecFilename);
+            var packageElement = document.Single("package");
+            var metadataElement = packageElement.Single("metadata");
 
-            packageFile.Filename = $"{packageId}.{nuGetVersion}.nupkg";
+            if (packageVersion == null)
+            {
+                packageVersion = PackageVersion.Parse(metadataElement.Single("version").Value);
+            }
+            else
+            {
+                metadataElement.Single("version").SetValue(packageVersion.ToString());
+            }
+
+            var packageId = metadataElement.Single("id").Value;
+            var repositoryElement = metadataElement.SingleOrDefault("repository");
+            if (repositoryElement == null)
+            {
+                repositoryElement = new XElement("repository");
+                metadataElement.Add(repositoryElement);
+            }
+
+            repositoryElement.SetAttributeValue("url", packageFile.RepositoryUrl);
+            repositoryElement.SetAttributeValue("type", "git");
+
+            using (var writer = XmlWriter.Create(nuspecFilename, new XmlWriterSettings
+            {
+                Encoding = new UTF8Encoding(false),
+                Indent = true,
+                OmitXmlDeclaration = false
+            }))
+            {
+                document.Save(writer);
+            }
+
+            packageFile.Filename = $"{packageId}.{packageVersion}.nupkg";
             packageFile.FilenameAbsolutePath = Path.Combine(packageFileWorkingDirectoryAbsolutePath, Path.ChangeExtension(packageFile.Filename, ".zip"));
             packageFile.IsNuspecRewritten = true;
 
-            File.WriteAllBytes(packageFile.FilenameAbsolutePath, outputStream.ToArray());
+            if (File.Exists(packageFile.FilenameAbsolutePath))
+            {
+                File.Delete(packageFile.FilenameAbsolutePath);
+            }
+
+            ZipFile.CreateFromDirectory(tmpDirectory, packageFile.FilenameAbsolutePath);
         }
 
         public static string FindTokenInNuGetConfig(Action<string> warning = null)
@@ -224,12 +221,12 @@ namespace GprTool
             var tokenValue = xmlDoc.SelectSingleNode("/configuration/packageSourceCredentials/github/add[@key='ClearTextPassword']/@value");
             if (tokenValue == null)
             {
-                warning?.Invoke($"Couldn't find a personal access token for GitHub in:");
+                warning?.Invoke("Couldn't find a personal access token for GitHub in:");
                 warning?.Invoke(configFile);
-                warning?.Invoke("");
+                warning?.Invoke(string.Empty);
                 warning?.Invoke("Please generate a token with 'repo', 'write:packages', 'read:packages' and 'delete:packages' scopes:");
                 warning?.Invoke("https://github.com/settings/tokens");
-                warning?.Invoke("");
+                warning?.Invoke(string.Empty);
                 warning?.Invoke(@"The token can be added under the 'configuration' element of your NuGet.Config file:
 <packageSourceCredentials>
   <github>
@@ -306,18 +303,21 @@ namespace GprTool
     public class DisposableDirectory : IDisposable
     {
         public string WorkingDirectory { get; }
-        
-        public static implicit operator string (DisposableDirectory directory) => directory.WorkingDirectory;
+
+        public static implicit operator string(DisposableDirectory directory) => directory.WorkingDirectory;
 
         public DisposableDirectory(string workingDirectory)
         {
             WorkingDirectory = workingDirectory;
             Directory.CreateDirectory(workingDirectory);
         }
-        
+
         public void Dispose()
         {
-            Directory.Delete(WorkingDirectory, true);
+            if (Directory.Exists(WorkingDirectory))
+            {
+                Directory.Delete(WorkingDirectory, true);
+            }
         }
     }
 }

@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.IO;
 using System.Linq;
-using System.Text;
-using DotNet.Globbing;
-using DotNet.Globbing.Token;
 
 namespace GprTool
 {
@@ -12,7 +8,8 @@ namespace GprTool
     {
         public static bool IsGlobPattern(this Glob glob)
         {
-            return glob.Tokens.Any(x => !(x is PathSeparatorToken || x is LiteralToken));
+            if (glob == null) throw new ArgumentNullException(nameof(glob));
+            return Glob.ContainsPattern(glob.Pattern);
         }
 
         public static string BuildBasePathFromGlob(this Glob glob, string baseDirectory)
@@ -20,67 +17,35 @@ namespace GprTool
             if (glob == null) throw new ArgumentNullException(nameof(glob));
             if (baseDirectory == null) throw new ArgumentNullException(nameof(baseDirectory));
 
-            var globTokens = glob.Tokens.ToList();
-            var pathTokens = new List<IGlobToken>();
+            var normalizedPattern = Glob.Normalize(glob.Pattern);
+            var normalizedBaseDirectory = Glob.Normalize(Path.GetFullPath(baseDirectory));
+            var root = Path.GetPathRoot(glob.Pattern)?.Replace('\\', '/') ?? string.Empty;
+            var relativePattern = root.Length > 0 && normalizedPattern.StartsWith(root, StringComparison.OrdinalIgnoreCase)
+                ? normalizedPattern.Substring(root.Length)
+                : normalizedPattern;
 
-            for (var index = 0; index < globTokens.Count; index++)
+            var segments = relativePattern
+                .Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries)
+                .ToList();
+
+            var matchedSegments = segments
+                .TakeWhile(segment => !Glob.ContainsPattern(segment))
+                .ToList();
+
+            if (!matchedSegments.Any())
             {
-                var token = glob.Tokens[index];
-                var tokenNext = index + 1 < globTokens.Count ? glob.Tokens[index + 1] : null;
-                
-                switch (token)
-                {
-                    case LiteralToken _:
-                        pathTokens.Add(token);
-                        if (tokenNext is AnyCharacterToken
-                            || tokenNext is INegatableToken
-                            && pathTokens.Any())
-                        {
-                            pathTokens.RemoveAt(pathTokens.Count - 1);
-                            goto done;
-                        }
-                        continue;
-                    case PathSeparatorToken _ when (tokenNext is LiteralToken):
-                        pathTokens.Add(token);
-                        continue;
-                }
-
-                goto done;
+                return root.Length > 0
+                    ? Path.GetFullPath(root.Replace('/', Path.DirectorySeparatorChar))
+                    : Path.GetFullPath(baseDirectory);
             }
 
-            done:
-
-            var pathStringBuilder = new StringBuilder();
-
-            foreach (var token in pathTokens)
+            var joined = string.Join(Path.DirectorySeparatorChar.ToString(), matchedSegments);
+            if (root.Length > 0)
             {
-                switch (token)
-                {
-                    case LiteralToken literalToken:
-                        pathStringBuilder.Append(literalToken.Value);
-                        break;
-                    case PathSeparatorToken _: // xplat
-                        pathStringBuilder.Append("/");
-                        break;
-                    default:
-                        throw new NotSupportedException(token.GetType().FullName);
-                }
+                return Path.GetFullPath(Path.Combine(root.Replace('/', Path.DirectorySeparatorChar), joined));
             }
 
-            var pathStr = pathStringBuilder.ToString();
-
-            // Remove trailing backward/forward slash
-            var lastAppendedGlobToken = pathTokens.LastOrDefault();
-            if (lastAppendedGlobToken is PathSeparatorToken
-                && pathStr.Sum(x => x == '/' ? 1 : 0) > 1)
-            {
-                pathStr = pathStr.Substring(0, pathStr.Length - 1);
-            } else if (lastAppendedGlobToken is LiteralToken literalToken && literalToken.Value == ".")
-            {
-                return Path.GetFullPath(baseDirectory);
-            }
-
-            return !Path.IsPathRooted(pathStr) ? Path.GetFullPath(pathStr, baseDirectory) : Path.GetFullPath(pathStr);
+            return Path.GetFullPath(Path.Combine(normalizedBaseDirectory.Replace('/', Path.DirectorySeparatorChar), joined));
         }
     }
 }
